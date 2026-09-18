@@ -1,0 +1,26 @@
+# macOS metadata
+.DS_Store
+._*
+
+# Local environment settings (keep shareable examples)
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Practice server credentials and generated reports
+validation-credentials.json
+validation-report.json
+
+# Alternate output filenames used in the starter guide
+credentials.json
+report.json
+
+# Logs and editor temporary files
+*.log
+*.swp
+*.swo
+*~
+
+# Original download; keep the extracted starter files instead
+/artifacts/bazaar-starter-linux.tar.gz
