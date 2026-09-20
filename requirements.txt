@@ -1,0 +1,3 @@
+protobuf
+grpcio-tools
+websockets>=14

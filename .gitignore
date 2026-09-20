@@ -24,3 +24,7 @@ report.json
 
 # Original download; keep the extracted starter files instead
 /artifacts/bazaar-starter-linux.tar.gz
+
+# Generated py files from proto schema
+*_pb2.py
+*_pb2.pyi
