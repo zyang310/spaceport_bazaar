@@ -28,3 +28,5 @@ report.json
 # Generated py files from proto schema
 *_pb2.py
 *_pb2.pyi
+
+__pycache__
