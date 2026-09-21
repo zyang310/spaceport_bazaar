@@ -15,10 +15,17 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "pip3 install --user -r requirements.txt && python3 -m grpc_tools.protoc -I artifacts/bazaar-protobuf-starter-linux --python_out=bazaar/generated --pyi_out=bazaar/generated artifacts/bazaar-protobuf-starter-linux/bazaar.proto && chmod +x artifacts/bazaar-protobuf-starter-linux/spaceport-validate-linux-*"
+	"postCreateCommand": "pip3 install --user -r requirements.txt && python3 -m grpc_tools.protoc -I artifacts/bazaar-protobuf-starter-linux --python_out=bazaar/generated --pyi_out=bazaar/generated artifacts/bazaar-protobuf-starter-linux/bazaar.proto && chmod +x artifacts/bazaar-protobuf-starter-linux/spaceport-validate-linux-*",
 
 	// Configure tool-specific properties.
-	// "customizations": {},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"Anthropic.claude-code",
+				"OpenAI.codex"
+			]
+		}
+	}
 
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
