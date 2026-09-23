@@ -89,3 +89,63 @@ class PolicyWeights:
 
 
 DEFAULT_WEIGHTS = PolicyWeights()
+
+
+@dataclass(frozen=True)
+class ScroogeWeights:
+    """What the Scrooge agent cares about, and how much.
+
+    Scrooge thinks in **ticks of cover** -- how many more ticks its stock would
+    survive at the current upkeep -- rather than in abstract need.  That single
+    number drives everything: it decides when the agent is willing to trade at
+    all, what it will pay, and what it refuses to let go of.
+
+    The agent never gives anything away, so there is no weight here for doing
+    so.  Its own reserves come first.
+    """
+
+    #: How many ticks ahead to project upkeep.  Longer than the utility
+    #: agent's, because reserves are the whole point of this policy.
+    horizon: int = 10
+    #: Units to keep on hand beyond projected upkeep.
+    buffer: int = 2
+    #: Never project past the end of the run; hoarding for ticks that will
+    #: never happen is waste, not prudence.
+    cap_horizon_to_run: bool = True
+
+    #: Below this many ticks of cover a resource is in danger, and only then
+    #: is the agent willing to go out and post trades for it.
+    danger_ticks: float = 5.0
+
+    #: Value of a unit that is running out, that we are merely short of, that
+    #: we are comfortable on, and that we are holding spare.
+    price_critical: float = 6.0
+    price_deficit: float = 3.0
+    price_neutral: float = 1.0
+    price_surplus: float = 0.5
+
+    #: The specialty regenerates, so parting with it costs us less than parting
+    #: with anything else.  This discount is what makes the agent reach for its
+    #: own resource first when it has to pay.  It does not apply when the
+    #: specialty is itself in danger.
+    specialty_discount: float = 0.5
+
+    #: Before anything is in danger, an incoming trade must return at least
+    #: this multiple of what it costs us.  "Clearly advantageous" or nothing.
+    advantage_ratio: float = 2.0
+
+    #: Units of payment offered per unit sought when proposing a trade.
+    offer_ratio: int = 2
+    #: How much of a needed resource to ask for in one offer.
+    offer_receive_qty: int = 1
+
+    #: Ticks ahead to set expiries, capped by the run's rules.
+    advertisement_ttl_ticks: int = 6
+    offer_ttl_ticks: int = 6
+
+    #: Scores for actions that are not themselves trades, used only for ranking.
+    advertise_score: float = 1.0
+    withdraw_score: float = 0.75
+
+
+DEFAULT_SCROOGE = ScroogeWeights()
