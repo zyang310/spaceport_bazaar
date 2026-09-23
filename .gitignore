@@ -30,3 +30,6 @@ report.json
 *_pb2.pyi
 
 __pycache__
+
+# Per-run logs
+runs/
