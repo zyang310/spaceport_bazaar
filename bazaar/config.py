@@ -149,3 +149,55 @@ class ScroogeWeights:
 
 
 DEFAULT_SCROOGE = ScroogeWeights()
+
+
+@dataclass(frozen=True)
+class HustlerWeights:
+    """What the Hustler agent cares about, and how much.
+
+    The Hustler's thesis is that volume beats margin: every settled trade moves
+    resources toward whoever values them, and standing still earns nothing.  So
+    it keeps a listing up at all times, offers to everyone who will look at it,
+    and takes any deal that is not actually bad.
+
+    The one thing it will not do is trade itself to death, which is what
+    ``floor_ticks`` is for.
+    """
+
+    #: A short lookahead on purpose: the Hustler trades on what is in front of
+    #: it, not on what it might need in ten ticks.
+    horizon: int = 2
+    buffer: int = 1
+
+    #: The hard floor, in ticks of cover. Nothing may take a resource below it.
+    #: This is the only line the Hustler will not cross.
+    floor_ticks: float = 2.0
+
+    #: Prices are deliberately flat, so few trades look unattractive.
+    price_deficit: float = 2.0
+    price_neutral: float = 1.0
+    price_surplus: float = 0.75
+
+    #: How much value the Hustler will knowingly give up to keep a trade
+    #: moving. A small loss is the cost of doing business; this is set wide
+    #: enough to swallow a one-for-two swap of spare goods, which is the
+    #: bread-and-butter trade this agent exists to make.
+    acceptable_loss: float = 1.0
+
+    #: Units offered per unit sought, and how much to ask for at a time.
+    offer_ratio: int = 1
+    offer_receive_qty: int = 1
+    #: Several offers may go to the same peer, unlike the other agents.
+    max_offers_per_peer: int = 2
+
+    #: Keep listings short-lived so they are refreshed often.
+    advertisement_ttl_ticks: int = 3
+    offer_ttl_ticks: int = 3
+
+    #: Offers outrank listings, which outrank tidying up.
+    offer_bonus: float = 2.0
+    advertise_score: float = 1.0
+    withdraw_score: float = 0.25
+
+
+DEFAULT_HUSTLER = HustlerWeights()

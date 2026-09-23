@@ -1,6 +1,7 @@
 """Policies: the scripted exercise, and the agents that actually decide."""
 
 from .base import Policy, ScriptedDriver
+from .hustler import HustlerPolicy
 from .scrooge import ScroogePolicy
 from .utility import UtilityPolicy
 
@@ -8,6 +9,14 @@ from .utility import UtilityPolicy
 AGENTS = {
     "utility": UtilityPolicy,
     "scrooge": ScroogePolicy,
+    "hustler": HustlerPolicy,
 }
 
-__all__ = ["AGENTS", "Policy", "ScriptedDriver", "ScroogePolicy", "UtilityPolicy"]
+__all__ = [
+    "AGENTS",
+    "HustlerPolicy",
+    "Policy",
+    "ScriptedDriver",
+    "ScroogePolicy",
+    "UtilityPolicy",
+]

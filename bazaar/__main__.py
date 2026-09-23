@@ -1,6 +1,6 @@
 """Command line entry point.
 
-    python -m bazaar --policy scripted|utility|scrooge [--shadow POLICY]
+    python -m bazaar --policy scripted|utility|scrooge|hustler [--shadow POLICY]
                      [--capture-fixtures] [--url URL] [--max-seconds N]
 
 The token comes from ``$BAZAAR_TOKEN`` or a gitignored ``.env``, falling back
@@ -36,8 +36,8 @@ def parse_args(argv=None) -> argparse.Namespace:
         default="scripted",
         help=(
             "scripted replays the guide's exercise; utility trades on projected "
-            "need; scrooge defends its reserves, pays in its specialty, and never "
-            "gives anything away"
+            "need; scrooge defends its reserves and never gives anything away; "
+            "hustler trades as often as the rules allow"
         ),
     )
     parser.add_argument(
