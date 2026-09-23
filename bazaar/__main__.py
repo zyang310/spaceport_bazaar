@@ -7,8 +7,13 @@ The token comes from ``$BAZAAR_TOKEN`` or a gitignored ``.env``, falling back
 to a practice-server credentials file.  It is never printed; only its source
 is.
 
+``--policy utility`` runs with no time limit by default, so it stays connected
+while a real game sits in ``PHASE_READY`` awaiting the instructor.  Stop it
+with Ctrl+C, or bound it with ``--max-seconds``.  The scripted exercise always
+ends on its own.
+
 Exit code 0 when every check passed; nonzero on a failed check, an unexpected
-protocol error, or a session the server closed on us.
+protocol error, or a session the server closed on us; 130 on Ctrl+C.
 """
 
 import argparse
@@ -52,8 +57,12 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser.add_argument(
         "--max-seconds",
         type=float,
-        default=30.0,
-        help="time limit for --policy utility (the scripted run ends on its own)",
+        default=None,
+        help=(
+            "time limit for --policy utility; unlimited by default, so it stays "
+            "connected through PHASE_READY until Ctrl+C (the scripted run always "
+            "ends on its own)"
+        ),
     )
     return parser.parse_args(argv)
 
@@ -125,7 +134,12 @@ async def main_async(args: argparse.Namespace) -> int:
 
 
 def main(argv=None) -> int:
-    return asyncio.run(main_async(parse_args(argv)))
+    try:
+        return asyncio.run(main_async(parse_args(argv)))
+    except KeyboardInterrupt:
+        # The expected way to stop an unlimited --policy utility run.
+        print("\ninterrupted")
+        return 130  # shell convention: 128 + SIGINT
 
 
 if __name__ == "__main__":

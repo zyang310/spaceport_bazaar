@@ -113,14 +113,34 @@ async def run_scripted(client, policy, outcome: RunOutcome) -> RunOutcome:
     return outcome
 
 
-async def run_utility(client, policy, run_log, outcome: RunOutcome, max_seconds: float) -> RunOutcome:
+async def run_utility(
+    client, policy, run_log, outcome: RunOutcome, max_seconds: float | None
+) -> RunOutcome:
     """Feed the agent states and carry out what it decides.
 
     The agent decides at most once per ``world_version``, so an extra snapshot
     of unchanged state -- a sync, say -- never triggers the same actions twice.
+
+    ``max_seconds`` is ``None`` by default, meaning no limit: a real game may
+    sit in ``PHASE_READY`` for a while before an instructor starts it, and the
+    agent should stay connected and waiting rather than give up. Stop an
+    unlimited run with Ctrl+C, or pass ``--max-seconds`` for a bounded one.
     """
     loop = asyncio.get_running_loop()
-    deadline = loop.time() + max_seconds
+    deadline = None if max_seconds is None else loop.time() + max_seconds
+
+    def expired() -> bool:
+        return deadline is not None and loop.time() >= deadline
+
+    def poll_seconds() -> float:
+        """How long to wait for the next state before rechecking.
+
+        Unlimited runs still poll in short bursts rather than blocking
+        forever, so the loop notices a closed connection promptly.
+        """
+        if deadline is None:
+            return 1.0
+        return min(1.0, max(0.05, deadline - loop.time()))
 
     state = await client.first_state()
     await client.declare_ready(state.snapshot_sequence)
@@ -129,13 +149,13 @@ async def run_utility(client, policy, run_log, outcome: RunOutcome, max_seconds:
     decided_versions: set[int] = set()
     issued = 0
 
-    while loop.time() < deadline:
+    while not expired():
         state = client.state
         if state is None:
             break
         if state.world_version in decided_versions:
             # Nothing new to think about; wait for the next snapshot.
-            if await client.quiet(seconds=min(1.0, max(0.05, deadline - loop.time()))) is None:
+            if await client.quiet(seconds=poll_seconds()) is None:
                 continue
             continue
 
@@ -154,12 +174,12 @@ async def run_utility(client, policy, run_log, outcome: RunOutcome, max_seconds:
         )
         if not chosen:
             print(f"  v{state.world_version}: no action")
-            if await client.quiet(seconds=min(1.0, max(0.05, deadline - loop.time()))) is None:
+            if await client.quiet(seconds=poll_seconds()) is None:
                 continue
             continue
 
         for action in chosen:
-            if loop.time() >= deadline:
+            if expired():
                 break
             issued += 1
             request_id = f"utility-{issued:04d}"
