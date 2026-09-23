@@ -1,8 +1,11 @@
 """Command line entry point.
 
     python -m bazaar --policy scripted|utility [--shadow utility]
-                     [--capture-fixtures] [--url ws://127.0.0.1:3001/ws]
-                     [--max-seconds N]
+                     [--capture-fixtures] [--url URL] [--max-seconds N]
+
+The token comes from ``$BAZAAR_TOKEN`` or a gitignored ``.env``, falling back
+to a practice-server credentials file.  It is never printed; only its source
+is.
 
 Exit code 0 when every check passed; nonzero on a failed check, an unexpected
 protocol error, or a session the server closed on us.
@@ -16,7 +19,7 @@ import time
 from . import config, runner
 from .brain.policy.scripted import ScriptedPolicy
 from .brain.policy.utility import UtilityPolicy
-from .network.transport import BazaarClient, ConnectionFailed, load_token
+from .network.transport import BazaarClient, ConnectionFailed, resolve_token
 from .runlog import RunLog
 
 
@@ -39,7 +42,11 @@ def parse_args(argv=None) -> argparse.Namespace:
         action="store_true",
         help="write every received frame to tests/fixtures/ as raw bytes",
     )
-    parser.add_argument("--url", default=config.DEFAULT_URL)
+    parser.add_argument(
+        "--url",
+        default=config.DEFAULT_URL,
+        help=f"default {config.DEFAULT_URL}; the bundled practice server is {config.PRACTICE_URL}",
+    )
     parser.add_argument("--credentials", default=str(config.CREDENTIALS_PATH))
     parser.add_argument("--station", default=config.STATION_ID)
     parser.add_argument(
@@ -52,7 +59,8 @@ def parse_args(argv=None) -> argparse.Namespace:
 
 
 async def main_async(args: argparse.Namespace) -> int:
-    token = load_token(args.credentials, args.station)
+    token, source = resolve_token(args.credentials, args.station)
+    print(f"token source: {source}")
 
     # The run ID is only known once the first state arrives, so logs start in a
     # timestamped directory and the real run ID is recorded inside them.

@@ -46,6 +46,27 @@ class ProtocolErrorReceived(RuntimeError):
         )
 
 
+def resolve_token(credentials_path: Path | str | None, station_id: str) -> tuple[str, str]:
+    """The token to connect with, and where it came from.
+
+    The environment wins, so a live game needs no file on disk and no edit to
+    a tracked one.  The practice server's credentials file is the fallback.
+    Only the source is ever named in output; the token itself is not.
+    """
+    from .. import config
+
+    token = config.env_token()
+    if token:
+        return token, f"${config.TOKEN_ENV}"
+    if credentials_path and Path(credentials_path).exists():
+        return load_token(credentials_path, station_id), str(credentials_path)
+    raise ConnectionFailed(
+        f"no token available: set {config.TOKEN_ENV} in the environment or in "
+        f"{config.ENV_FILE}, or point --credentials at a credentials file "
+        f"(tried {credentials_path})"
+    )
+
+
 def load_token(credentials_path: Path | str, station_id: str) -> str:
     """Read one station's token out of ``validation-credentials.json``.
 
