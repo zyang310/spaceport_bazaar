@@ -160,6 +160,11 @@ async def run_utility(
             continue
 
         decided_versions.add(state.world_version)
+        water, food, components = state.observation.inventory.as_tuple()
+        print(
+            f"  v{state.world_version} (tick {state.tick}, {state.phase.name}): "
+            f"water={water} food={food} components={components}"
+        )
         chosen = policy.decide(state)
         run_log.write(
             "decisions.jsonl",
@@ -173,7 +178,7 @@ async def run_utility(
             },
         )
         if not chosen:
-            print(f"  v{state.world_version}: no action")
+            print("    no action")
             if await client.quiet(seconds=poll_seconds()) is None:
                 continue
             continue
@@ -188,10 +193,10 @@ async def run_utility(
                 raw = limits.validate_command(message, state)
             except limits.CommandRejected as exc:
                 outcome.fail(f"agent produced an illegal command: {exc}")
-                print(f"  v{state.world_version}: REJECTED {action.describe()} -- {exc}")
+                print(f"    REJECTED {action.describe()} -- {exc}")
                 continue
 
-            print(f"  v{state.world_version}: {action.describe()}  <- {action.reason}")
+            print(f"    {action.describe()}  <- {action.reason}")
             try:
                 result = await _send_with_one_retry(client, message, raw, request_id)
             except ProtocolErrorReceived as exc:
