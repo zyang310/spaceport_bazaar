@@ -69,13 +69,27 @@ class BazaarClient:
             await client.declare_ready(state.snapshot_sequence)
     """
 
-    def __init__(self, url: str, token: str, *, run_log: RunLog | None = None, on_state=None):
+    def __init__(
+        self,
+        url: str,
+        token: str,
+        *,
+        run_log: RunLog | None = None,
+        on_state=None,
+        on_frame=None,
+    ):
         self.url = url
         self._token = token
         self.run_log = run_log
         self.on_state = on_state
+        #: Called with (raw_bytes, decoded_message) for every frame read,
+        #: which is how fixture capture gets the bytes exactly as sent.
+        self.on_frame = on_frame
 
         self.state: model.State | None = None
+        #: Every state in arrival order.  The scripted exercise checks each
+        #: snapshot individually, and steps 4-6 deliver three in a row.
+        self.states: list[model.State] = []
         self.sent = 0
         self.received = 0
         #: protocol errors that named no request, so nobody was waiting for them
@@ -140,6 +154,8 @@ class BazaarClient:
                     raise ConnectionFailed(f"expected a binary frame, got text: {raw!r}")
                 self.received += 1
                 message = decode.decode_bytes(raw)
+                if self.on_frame is not None:
+                    self.on_frame(raw, message)
                 if self.run_log is not None:
                     self.run_log.message("received", message)
                 await self._dispatch(message)
@@ -166,6 +182,7 @@ class BazaarClient:
     async def _on_state(self, state: model.State) -> None:
         # A snapshot replaces the previous view wholesale; it is never merged.
         self.state = state
+        self.states.append(state)
         if self.on_state is not None:
             self.on_state(state)
         async with self._state_changed:
@@ -268,3 +285,34 @@ class BazaarClient:
 
     async def next_state(self, after_sequence: int, timeout: float = 10) -> model.State:
         return await self.wait_for_snapshot(after_sequence + 1, timeout=timeout)
+
+    async def state_with_sequence(self, snapshot_sequence: int, timeout: float = 10) -> model.State:
+        """The snapshot with exactly this sequence number.
+
+        ``self.state`` only ever holds the newest snapshot, so a caller that
+        needs to inspect each one in a burst reads them from the history
+        instead of racing the reader for them.
+        """
+        await self.wait_for_snapshot(snapshot_sequence, timeout=timeout)
+        for state in self.states:
+            if state.snapshot_sequence == snapshot_sequence:
+                return state
+        raise ConnectionFailed(f"no state with snapshot_sequence {snapshot_sequence} was received")
+
+    async def quiet(self, seconds: float = 0.4) -> model.State | None:
+        """Wait a moment and report any state that arrives unexpectedly.
+
+        The exercise's message counts only hold if the server sends exactly
+        what the guide lists, so a step can check that nothing extra followed.
+        """
+        before = len(self.states)
+        try:
+            await asyncio.wait_for(self._state_arrived(before), timeout=seconds)
+        except asyncio.TimeoutError:
+            return None
+        return self.states[-1]
+
+    async def _state_arrived(self, before: int) -> None:
+        async with self._state_changed:
+            while len(self.states) <= before:
+                await self._state_changed.wait()
