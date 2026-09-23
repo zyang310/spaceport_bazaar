@@ -5,8 +5,9 @@
 the vocabulary the whole client speaks — see [architecture.md](architecture.md)
 for why the boundary exists.
 
-`commands.py` is already written against this contract and is its only consumer
-today. Everything in `validation/` is blocked until it lands.
+`commands.py` was written against this contract before `model.py` existed. The
+module now exists and the contract below is settled; both questions it once
+left open are answered, and the answers are marked **Decided** in place.
 
 ## Conventions
 
@@ -27,9 +28,11 @@ today. Everything in `validation/` is blocked until it lands.
    `NullableString { oneof kind { bool null; string value } }` becomes a plain
    optional field; `encode.py` and `decode.py` pick the arm.
 
-## Open question: `ListResource`
+## Decided: `ListResource` flattens
 
-**This one needs a decision before `model.py` is written.**
+**Option A below was chosen.** `model.py` holds resource lists as plain Python
+lists, and `encode.py` re-adds the wrapper on the way out. `commands.py` had
+assumed this, so it needed no change. The reasoning follows.
 
 The proto does not give `AdvertiseBody.selling` a plain list. It wraps it:
 
@@ -140,13 +143,10 @@ Not required for `commands.py`, but `decode.py` will need all of it:
   `NullablePlayerOutcome` — all flattening to `X | None` per convention 5
 
 One naming snag: `State.self` in the proto collides with Python's `self`.
-Dataclasses happen to tolerate a field with that name, but `observation` or
-`self_observation` reads better. Whatever we choose, `decode.py` and
-`brain/store.py` both depend on it, so decide once.
+**Decided: `observation`.** `decode.py`, `brain/store.py`, and the policies all
+use that name, so a state reads `state.observation.inventory`.
 
 ## Verifying it
-
-Once `model.py` exists:
 
 ```bash
 python -c "from bazaar.validation.commands import CommandBuilder; \
@@ -154,4 +154,5 @@ python -c "from bazaar.validation.commands import CommandBuilder; \
 ```
 
 If that prints a `ClientMessage` with the `sync` arm set, the contract holds.
-Then `tests/test_commands.py` can be written for real.
+It does, and `tests/test_commands.py` now covers all six arms; `tests/factories.py`
+builds whole `State` objects for the tests that need one.
