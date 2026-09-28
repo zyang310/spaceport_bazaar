@@ -243,7 +243,7 @@ does not transfer or reserve resources. Save the offer's ID to track it.
 **Keep reading:** the server sends the two updates in steps 5 and 6 next.
 
 ### 5. Observe P02 accept your offer
-
+11
 **Send:** Nothing. P02 accepts automatically.
 
 **Receive:** One `state` with `world_version: 6` and `snapshot_sequence: 5`.

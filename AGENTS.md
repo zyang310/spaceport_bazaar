@@ -24,7 +24,7 @@ Where this repo's docs and the starter README disagree, **the README wins.**
 ## 2. Commands
 
 ```bash
-# Tests — 165 of them, all must pass. Fast (<1s).
+# Tests — 209 of them, all must pass. Fast (<1s).
 python -m pytest tests/ -q
 
 # One file
@@ -128,6 +128,7 @@ Existing policies, as reference points:
 | `utility` | Trade on projected need over a 5-tick horizon. The baseline. |
 | `scrooge` | Defend reserves. Only shops when short. Never gives anything away. |
 | `hustler` | Volume over margin. Always listed, accepts at a small loss. |
+| `hivemind` | Collective survival, ported from ldmoore/spaceport_hivemind's coordinator. No prices: tops every station up to 4 ticks of reserve via exchanges, then gives spare stock away. Reads peer needs from advertisements. |
 | `scripted` | Not an agent — replays the guide's 10-step exercise. Drives the connection directly because it must react to results and protocol errors, not just states. |
 
 ---
@@ -194,7 +195,7 @@ Match the surrounding code. Concretely:
 ## 9. Before you finish
 
 ```bash
-python -m pytest tests/ -q                                    # 165 passing
+python -m pytest tests/ -q                                    # 209 passing
 grep -rn "bazaar_pb2" bazaar/ --include="*.py" | grep -v "^bazaar/generated/"
 git status --short                                            # no .env, no webb_docs/
 ```

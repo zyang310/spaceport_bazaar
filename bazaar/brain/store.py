@@ -94,5 +94,15 @@ def remaining_result_capacity(state: model.State) -> int:
     return max(0, state.rules.max_request_records_per_station - used)
 
 
+def commands_used_this_tick(state: model.State) -> int:
+    """Commands the server has already processed for us during this tick.
+
+    The runner decides once per ``world_version``, and every command we send
+    advances it, so a policy can be asked several times within one tick.  The
+    per-tick command budget is shared across all of those decisions.
+    """
+    return sum(1 for result in state.request_results if result.processed_tick == state.tick)
+
+
 def remaining_offer_slots(state: model.State) -> int:
     return max(0, state.rules.max_open_outgoing_offers - len(my_open_offers(state)))

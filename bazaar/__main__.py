@@ -1,6 +1,6 @@
 """Command line entry point.
 
-    python -m bazaar --policy scripted|utility|scrooge|hustler [--shadow POLICY]
+    python -m bazaar --policy scripted|utility|scrooge|hustler|hivemind [--shadow POLICY]
                      [--capture-fixtures] [--url URL] [--max-seconds N]
 
 The token comes from ``$BAZAAR_TOKEN`` or a gitignored ``.env``, falling back

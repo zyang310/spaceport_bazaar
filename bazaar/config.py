@@ -204,3 +204,39 @@ class HustlerWeights:
 
 
 DEFAULT_HUSTLER = HustlerWeights()
+
+
+@dataclass(frozen=True)
+class HivemindWeights:
+    """What the Hivemind agent cares about, and how much.
+
+    Ported from ``CoordinatorConfig`` in ldmoore/spaceport_hivemind.  There are
+    no prices: the coordinator moves exact quantities that restore reserves, so
+    the only tunables are how big a reserve is and how long an offer lives.
+    """
+
+    #: Ticks of upkeep a station aims to hold.  Below it is a deficit, above it
+    #: a surplus.  Four covers an offer, its later acceptance, and a relay
+    #: through a second station before the producer can safely send again.
+    reserve_ticks: int = 4
+    #: The offer/accept delivery window.  An exchange only tops a station up to
+    #: this many ticks: filling the whole reserve in one offer strands the
+    #: payer while the recipient sits on stock it cannot use yet.  Capped at
+    #: ``reserve_ticks``.
+    survival_ticks: int = 2
+
+    #: ``None`` uses the full lifetime the rules allow, as the coordinator
+    #: does: a recipient cannot accept an offer until a later snapshot shows it.
+    offer_ttl_ticks: int | None = None
+    advertisement_ttl_ticks: int | None = None
+
+    #: Ranking only.  The coordinator settles visible offers first, then
+    #: matches exchanges, then gives aid; these tiers keep that order.
+    accept_score: float = 4.0
+    withdraw_score: float = 3.0
+    exchange_score: float = 2.0
+    aid_score: float = 1.0
+    advertise_score: float = 0.5
+
+
+DEFAULT_HIVEMIND = HivemindWeights()
