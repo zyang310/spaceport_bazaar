@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bazaar dashboard</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --wash: rgba(11, 11, 11, 0.035);
+
+    /* One colour per resource, everywhere on the page. */
+    --water: #2a78d6;
+    --food: #1baf7a;
+    --components: #eb6834;
+
+    /* Status: only where the colour means good or bad, always with an icon and a label. */
+    --good: #0ca30c;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --wash: rgba(255, 255, 255, 0.04);
+      --water: #3987e5;
+      --food: #199e70;
+      --components: #d95926;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --wash: rgba(255, 255, 255, 0.04);
+    --water: #3987e5;
+    --food: #199e70;
+    --components: #d95926;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 1400px; margin: 0 auto; padding: 16px; }
+  main.dimmed { opacity: 0.55; transition: opacity 0.3s; }
+
+  /* --- header ---------------------------------------------------------- */
+  header {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .bar {
+    max-width: 1400px; margin: 0 auto; padding: 10px 16px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px;
+  }
+  .station { font-size: 18px; font-weight: 600; }
+  .sub { color: var(--ink-2); font-size: 12px; }
+  .field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .field .label { color: var(--ink-2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .progress { display: flex; align-items: center; gap: 10px; flex: 1 1 260px; min-width: 200px; }
+  .progress .meter { flex: 1; }
+  .spacer { flex: 1 0 0; }
+
+  .meter { height: 8px; border-radius: 4px; background: var(--grid); overflow: hidden; }
+  .meter > span { display: block; height: 100%; border-radius: 4px; background: var(--ink-2); }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 2px 10px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--wash);
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .icon { font-weight: 700; }
+  .good .icon { color: var(--good); }
+  .warning .icon { color: var(--warning); }
+  .serious .icon { color: var(--serious); }
+  .critical .icon { color: var(--critical); }
+  .neutral .icon, .muted .icon { color: var(--ink-2); }
+  .muted { color: var(--muted); }
+
+  .banner {
+    margin: 0 0 16px; padding: 10px 14px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface); font-weight: 600;
+  }
+
+  /* --- layout -------------------------------------------------------- */
+  .grid { display: grid; gap: 16px; }
+  .top { grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(220px, 1.3fr)); }
+  .middle { grid-template-columns: 3fr 2fr; margin-top: 16px; }
+  .bottom { margin-top: 16px; }
+  @media (max-width: 1100px) {
+    .top { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .middle { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 620px) {
+    .top { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    min-width: 0;
+    position: relative;
+  }
+  .card h2 {
+    margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--ink-2);
+    display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  }
+  .card h2 .count { font-weight: 400; }
+  .card h2 .right { margin-left: auto; font-weight: 400; }
+
+  /* --- reserves -------------------------------------------------------- */
+  .res-head { display: flex; align-items: center; gap: 8px; }
+  .res-name { font-weight: 600; text-transform: capitalize; }
+  .star { color: var(--ink-2); font-size: 12px; }
+  .amount { font-size: 34px; font-weight: 600; line-height: 1.1; margin: 6px 0 2px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-2); font-size: 12px; margin-top: 6px; }
+  .facts b { color: var(--ink); font-weight: 600; }
+  .spark-wrap { position: relative; margin-top: 8px; }
+  .spark { display: block; width: 100%; height: 56px; overflow: visible; }
+  .spark-empty { height: 56px; margin-top: 8px; display: flex; align-items: center; color: var(--muted); font-size: 12px; }
+  .tooltip {
+    position: absolute; pointer-events: none; z-index: 3;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 8px; font-size: 12px; white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  }
+  .tooltip b { font-size: 13px; }
+  .tooltip .key { display: inline-block; width: 10px; height: 2px; vertical-align: middle; margin-right: 6px; }
+
+  .health-num { font-size: 34px; font-weight: 600; line-height: 1.1; margin: 6px 0 8px; }
+  .health-num small { font-size: 14px; color: var(--ink-2); font-weight: 400; }
+
+  /* --- resource keys and bundles ------------------------------------------ */
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .dot.water { background: var(--water); }
+  .dot.food { background: var(--food); }
+  .dot.components { background: var(--components); }
+  .bundle { display: inline-flex; flex-wrap: wrap; gap: 2px 10px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .chip b { font-variant-numeric: tabular-nums; }
+
+  /* --- tables ------------------------------------------------------------- */
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; font-weight: 600; color: var(--ink-2); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 6px 8px; border-bottom: 1px solid var(--axis);
+  }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.group td {
+    background: var(--wash); color: var(--ink-2); font-size: 11px; font-weight: 600;
+    padding: 4px 8px; letter-spacing: 0.02em;
+  }
+  .empty { color: var(--muted); padding: 10px 8px; font-size: 13px; }
+  .status { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-weight: 600; }
+  .detail { display: block; font-size: 11px; color: var(--ink-2); font-weight: 400; word-break: break-word; }
+  .terms { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; }
+  .terms .verb { font-weight: 600; }
+  .reason { color: var(--ink-2); font-size: 12px; }
+  .rid { color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace; }
+  .totals { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .offers-block + .offers-block { margin-top: 14px; }
+  h3 { margin: 0 0 6px; font-size: 12px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; }
+  h3 .count { font-weight: 400; color: var(--ink-2); }
+
+  details summary { cursor: pointer; color: var(--ink-2); font-size: 13px; font-weight: 600; }
+  details[open] summary { margin-bottom: 8px; }
+
+  .waiting { text-align: center; padding: 80px 16px; color: var(--ink-2); }
+  .waiting b { display: block; color: var(--ink); font-size: 18px; margin-bottom: 6px; }
+  footer { max-width: 1400px; margin: 0 auto; padding: 0 16px 24px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header><div class="bar" id="bar"></div></header>
+<main id="main">
+  <div class="waiting" id="waiting"><b>Waiting for the first state</b>The client is connecting, or the game has not sent a snapshot yet.</div>
+  <div id="content" hidden>
+    <div id="banner"></div>
+    <section class="grid top" id="top"></section>
+    <section class="grid middle">
+      <div class="card" id="actions"></div>
+      <div class="card" id="offers"></div>
+    </section>
+    <section class="grid bottom">
+      <div class="card" id="trades"></div>
+      <div class="card"><details id="history"></details></div>
+    </section>
+  </div>
+</main>
+<footer id="footer"></footer>
+
+<script>
+"use strict";
+
+// --- state ----------------------------------------------------------------
+let data = null;
+let socketOpen = false;
+let lastMessageAt = 0;
+let historyOpen = false;
+
+const RESOURCES = ["water", "food", "components"];
+
+const STATUS = {
+  queued:   { icon: "○", label: "queued",   tone: "neutral" },
+  sent:     { icon: "◐", label: "sent",     tone: "neutral" },
+  ok:       { icon: "✓", label: "ok",       tone: "good" },
+  failed:   { icon: "✕", label: "failed",   tone: "critical" },
+  rejected: { icon: "!", label: "rejected", tone: "serious" },
+  error:    { icon: "!", label: "error",    tone: "critical" },
+  skipped:  { icon: "–", label: "skipped",  tone: "muted" },
+};
+const LEVEL = {
+  ok:       { icon: "✓", label: "ok",       tone: "good" },
+  low:      { icon: "▲", label: "low",      tone: "warning" },
+  critical: { icon: "!", label: "critical", tone: "critical" },
+};
+const PHASE_TONE = { READY: "neutral", RUNNING: "good", PAUSED: "warning", FINISHED: "neutral", ABORTED: "critical" };
+const PHASE_ICON = { READY: "○", RUNNING: "●", PAUSED: "‖", FINISHED: "■", ABORTED: "✕" };
+
+// --- DOM helpers: every piece of data goes in as text, never as markup ---------
+function h(tag, attrs, ...children) {
+  const el = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs || {})) {
+    if (value == null || value === false) continue;
+    if (key === "class") el.className = value;
+    else if (key === "style") el.style.cssText = value;
+    else el.setAttribute(key, value);
+  }
+  for (const child of children.flat(Infinity)) {
+    if (child == null || child === false) continue;
+    el.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+  return el;
+}
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Number(n).toLocaleString();
+
+function pill(tone, icon, label, title) {
+  return h("span", { class: `pill ${tone}`, title }, h("span", { class: "icon" }, icon), label);
+}
+function statusChip(status, detail) {
+  const s = STATUS[status] || { icon: "?", label: status, tone: "neutral" };
+  return h("span", {},
+    h("span", { class: `status ${s.tone}` }, h("span", { class: "icon" }, s.icon), s.label),
+    detail ? h("span", { class: "detail" }, detail) : null);
+}
+function station(id) {
+  const name = data && data.header.names[id];
+  return name && name !== id ? `${id} · ${name}` : id;
+}
+function order() {
+  return data ? data.reserves.map((r) => r.resource) : RESOURCES;
+}
+// A bundle as coloured keys with text beside them; "nothing" when it is all zero.
+function bundle(b) {
+  const parts = order().filter((r) => b[r]).map((r) =>
+    h("span", { class: "chip" }, h("span", { class: `dot ${r}` }), h("b", {}, fmt(b[r])), r));
+  return parts.length ? h("span", { class: "bundle" }, parts) : h("span", { class: "muted" }, "nothing");
+}
+function resourceList(list) {
+  if (!list.length) return h("span", { class: "muted" }, "nothing");
+  return h("span", { class: "bundle" }, list.map((r) => h("span", { class: "chip" }, h("span", { class: `dot ${r}` }), r)));
+}
+function ticksLeft(n) {
+  if (n <= 0) return h("span", { class: "status critical" }, h("span", { class: "icon" }, "!"), "this tick");
+  if (n === 1) return h("span", { class: "status warning" }, h("span", { class: "icon" }, "▲"), "1 tick");
+  return `${n} ticks`;
+}
+
+// --- header ------------------------------------------------------------------
+function renderBar() {
+  const bar = $("bar");
+  if (!data) {
+    bar.replaceChildren(h("div", { class: "station" }, "Bazaar"), h("div", { class: "spacer" }), h("span", { id: "conn" }));
+    updateLive();
+    return;
+  }
+  const hd = data.header;
+  const pct = hd.duration_ticks ? Math.min(100, (100 * hd.tick) / hd.duration_ticks) : 0;
+  bar.replaceChildren(
+    h("div", { class: "field" },
+      h("div", { class: "station" }, hd.station),
+      h("div", { class: "sub" }, h("span", { class: "chip" }, h("span", { class: `dot ${hd.specialty}` }), `★ ${hd.specialty} specialty`))),
+    h("div", { class: "field" },
+      h("span", { class: "label" }, "Run"),
+      h("span", {}, hd.run_id)),
+    h("div", { class: "field" },
+      h("span", { class: "label" }, "Phase"),
+      pill(PHASE_TONE[hd.phase] || "neutral", PHASE_ICON[hd.phase] || "·", hd.phase.toLowerCase())),
+    h("div", { class: "progress" },
+      h("div", { class: "field" },
+        h("span", { class: "label" }, "Tick"),
+        h("span", {}, h("b", {}, fmt(hd.tick)), ` / ${fmt(hd.duration_ticks)}`)),
+      h("div", { class: "meter", role: "progressbar", "aria-valuenow": hd.tick, "aria-valuemax": hd.duration_ticks, "aria-label": "Run progress" },
+        h("span", { style: `width:${pct}%` })),
+      h("div", { class: "field" },
+        h("span", { class: "label" }, "Next tick"),
+        h("span", { id: "countdown" }, "—"))),
+    h("div", { class: "field" },
+      h("span", { class: "label" }, "World"),
+      h("span", { title: `snapshot ${hd.snapshot_sequence}` }, `v${fmt(hd.world_version)}`)),
+    h("span", { id: "conn" }),
+  );
+  updateLive();
+}
+
+// Runs four times a second: the countdown and the connection pill move between states.
+function updateLive() {
+  const conn = $("conn");
+  if (conn) {
+    let el;
+    const tickMs = data && data.header ? data.header.tick_duration_ms : 5000;
+    const running = data && data.header && data.header.phase === "RUNNING";
+    if (!socketOpen) el = pill("critical", "✕", "disconnected · retrying");
+    else if (!data) el = pill("neutral", "○", "connected");
+    else if (running && Date.now() - lastMessageAt > 2 * tickMs) el = pill("warning", "▲", "stale", "no state for over two ticks");
+    else el = pill("good", "●", "live");
+    conn.replaceChildren(el);
+  }
+  const cd = $("countdown");
+  if (cd && data && data.header) {
+    const hd = data.header;
+    if (hd.phase !== "RUNNING" || hd.tick_seen_at_ms == null) cd.textContent = "—";
+    else {
+      const left = hd.tick_seen_at_ms + hd.tick_duration_ms - Date.now();
+      cd.textContent = left > 0 ? `~${Math.ceil(left / 1000)}s` : "due";
+    }
+  }
+}
+
+// --- health and reserves ------------------------------------------------------
+function healthCard() {
+  const hl = data.health;
+  const pct = hl.max_health ? (100 * hl.health) / hl.max_health : 0;
+  const tone = pct >= 60 ? "good" : pct >= 30 ? "warning" : "critical";
+  const icon = { good: "✓", warning: "▲", critical: "!" }[tone];
+  const colour = `var(--${tone})`;
+  return h("div", { class: "card" },
+    h("h2", {}, "Health"),
+    h("div", { class: "health-num" }, fmt(hl.health), h("small", {}, ` / ${fmt(hl.max_health)}`)),
+    h("div", { class: "meter", role: "meter", "aria-valuenow": hl.health, "aria-valuemax": hl.max_health, "aria-label": "Health",
+               style: `background: color-mix(in srgb, ${colour} 18%, var(--surface))` },
+      h("span", { style: `width:${pct}%; background:${colour}` })),
+    h("div", { class: "facts" },
+      h("span", { class: `status ${tone}` }, h("span", { class: "icon" }, icon), { good: "healthy", warning: "hurting", critical: "in danger" }[tone]),
+      h("span", {}, "shortage streak ", h("b", {}, fmt(hl.current_shortage_streak)), ` (longest ${fmt(hl.longest_shortage_streak)})`),
+      h("span", {}, "supplied ", h("b", {}, fmt(hl.fully_supplied_ticks)), " · short ", h("b", {}, fmt(hl.shortage_ticks)), " ticks"),
+      hl.failed_once ? h("span", { class: "status critical" }, h("span", { class: "icon" }, "✕"), `failed at tick ${hl.first_failure_tick}`) : null));
+}
+
+function reserveCard(r) {
+  const level = LEVEL[r.level];
+  const cover = r.cover_ticks == null ? "not consumed" : `${r.cover_ticks} ticks of cover`;
+  return h("div", { class: "card" },
+    h("div", { class: "res-head" },
+      h("span", { class: `dot ${r.resource}` }),
+      h("span", { class: "res-name" }, r.resource),
+      r.is_specialty ? h("span", { class: "star", title: "our specialty: we produce it" }, "★ specialty") : null,
+      h("span", { class: `status ${level.tone}`, style: "margin-left:auto" }, h("span", { class: "icon" }, level.icon), level.label)),
+    h("div", { class: "amount" }, fmt(r.amount)),
+    h("div", { class: "sub" }, cover),
+    sparkline(r),
+    h("div", { class: "facts" },
+      h("span", {}, "upkeep ", h("b", {}, fmt(r.upkeep)), "/tick"),
+      h("span", {}, "made ", h("b", {}, fmt(r.last_production)), " last tick"),
+      r.last_unmet ? h("span", { class: "status critical" }, h("span", { class: "icon" }, "!"), `${fmt(r.last_unmet)} unmet`) : null,
+      h("span", {}, "in ", h("b", {}, fmt(r.imported_total)), " · out ", h("b", {}, fmt(r.exported_total)))));
+}
+
+// A single-series trend: 2px line, a faint wash, a ringed end-dot, and a
+// crosshair that snaps to the nearest tick.  The table under "Reserve
+// history" holds the same numbers for anyone not hovering.
+function sparkline(r) {
+  const pts = r.history;
+  if (pts.length < 2) return h("div", { class: "spark-empty" }, "trend appears after two ticks");
+  const W = 300, H = 56, pad = 5;
+  const t0 = pts[0][0], t1 = pts[pts.length - 1][0];
+  const maxY = Math.max(1, ...pts.map((p) => p[1]));
+  const x = (t) => pad + ((W - 2 * pad) * (t - t0)) / Math.max(1, t1 - t0);
+  const y = (v) => H - pad - ((H - 2 * pad) * v) / maxY; // zero is the baseline: empty means empty
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
+  const area = `${line}L${x(t1).toFixed(1)},${y(0)}L${x(t0).toFixed(1)},${y(0)}Z`;
+  const colour = `var(--${r.resource})`;
+  const NS = "http://www.w3.org/2000/svg";
+  const s = (tag, attrs) => {
+    const el = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  };
+  const svg = s("svg", { class: "spark", viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", role: "img",
+                          "aria-label": `${r.resource} over the last ${pts.length} ticks` });
+  svg.append(
+    s("line", { x1: pad, x2: W - pad, y1: y(0), y2: y(0), stroke: "var(--axis)", "stroke-width": 1, "vector-effect": "non-scaling-stroke" }),
+    s("path", { d: area, fill: colour, "fill-opacity": 0.1, stroke: "none" }),
+    s("path", { d: line, fill: "none", stroke: colour, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round", "vector-effect": "non-scaling-stroke" }),
+  );
+  const cross = s("line", { y1: pad, y2: H - pad, stroke: "var(--axis)", "stroke-width": 1, "vector-effect": "non-scaling-stroke", visibility: "hidden" });
+  svg.append(cross);
+
+  // Dots are drawn in HTML over the SVG so they stay round when the SVG stretches.
+  const wrap = h("div", { class: "spark-wrap" }, svg);
+  const dot = (px, py) => h("span", { style:
+    `position:absolute; left:calc(${(100 * px) / W}% - 6px); top:${py - 6}px; width:12px; height:12px; border-radius:50%;` +
+    `background:${colour}; border:2px solid var(--surface); pointer-events:none` });
+  const last = pts[pts.length - 1];
+  wrap.append(dot(x(last[0]), y(last[1])));
+  const hover = dot(0, 0);
+  hover.style.visibility = "hidden";
+  const tip = h("div", { class: "tooltip", style: "visibility:hidden" });
+  wrap.append(hover, tip);
+
+  svg.addEventListener("pointermove", (e) => {
+    const box = svg.getBoundingClientRect();
+    const px = ((e.clientX - box.left) / box.width) * W;
+    let best = pts[0];
+    for (const p of pts) if (Math.abs(x(p[0]) - px) < Math.abs(x(best[0]) - px)) best = p;
+    const bx = x(best[0]);
+    cross.setAttribute("x1", bx); cross.setAttribute("x2", bx);
+    cross.setAttribute("visibility", "visible");
+    hover.style.left = `calc(${(100 * bx) / W}% - 6px)`;
+    hover.style.top = `${y(best[1]) - 6}px`;
+    hover.style.visibility = "visible";
+    tip.replaceChildren(h("span", { class: "key", style: `background:${colour}` }), h("b", {}, fmt(best[1])), ` ${r.resource} · tick ${best[0]}`);
+    const left = (bx / W) * box.width;
+    tip.style.left = `${Math.min(Math.max(0, left - 60), box.width - 140)}px`;
+    tip.style.top = "-26px";
+    tip.style.visibility = "visible";
+  });
+  svg.addEventListener("pointerleave", () => {
+    cross.setAttribute("visibility", "hidden");
+    hover.style.visibility = "hidden";
+    tip.style.visibility = "hidden";
+  });
+  return wrap;
+}
+
+// --- actions -------------------------------------------------------------------
+function actionTerms(a) {
+  const t = a.terms || {};
+  switch (t.kind) {
+    case "offer":
+      return h("div", { class: "terms" },
+        h("span", { class: "verb" }, `Offer → ${station(t.counterparty)}`),
+        h("span", {}, "give ", bundle(t.we_give)),
+        h("span", {}, "get ", bundle(t.we_get)),
+        h("span", { class: "muted" }, `until t${t.expires_tick}`));
+    case "accept":
+      return h("div", { class: "terms" },
+        h("span", { class: "verb" }, t.counterparty ? `Accept ← ${station(t.counterparty)}` : "Accept"),
+        t.we_give ? h("span", {}, "give ", bundle(t.we_give)) : null,
+        t.we_get ? h("span", {}, "get ", bundle(t.we_get)) : null,
+        h("span", { class: "rid" }, t.offer_id));
+    case "advertise":
+      return h("div", { class: "terms" },
+        h("span", { class: "verb" }, "Advertise"),
+        h("span", {}, "selling ", resourceList(t.selling)),
+        h("span", {}, "seeking ", resourceList(t.seeking)),
+        h("span", { class: "muted" }, `until t${t.expires_tick}`));
+    case "withdraw":
+      return h("div", { class: "terms" }, h("span", { class: "verb" }, "Withdraw"), h("span", { class: "rid" }, t.object_id));
+    default:
+      return h("div", { class: "terms" }, a.description);
+  }
+}
+
+function renderActions() {
+  const ac = data.actions;
+  const totals = ac.totals || {};
+  const ld = ac.last_decision;
+  const rows = [];
+  let group = null;
+  for (const a of ac.recent) {
+    if (a.world_version !== group) {
+      group = a.world_version;
+      rows.push(h("tr", { class: "group" }, h("td", { colspan: 4 }, `tick ${a.tick} · v${fmt(a.world_version)}`)));
+    }
+    rows.push(h("tr", {},
+      h("td", {}, statusChip(a.status, a.status === "ok" ? null : a.detail)),
+      h("td", {}, actionTerms(a), a.request_id ? h("span", { class: "rid" }, a.request_id) : null),
+      h("td", { class: "reason" }, a.reason),
+      h("td", { class: "num" }, a.score.toFixed(2))));
+  }
+  const tally = ["sent", "ok", "failed", "rejected", "error", "skipped"]
+    .filter((k) => totals[k])
+    .map((k) => pill(STATUS[k].tone, STATUS[k].icon, `${fmt(totals[k])} ${STATUS[k].label}`));
+  $("actions").replaceChildren(
+    h("h2", {}, "Pending actions",
+      h("span", { class: "count" }, ld ? `last decision tick ${ld.tick} · ${ld.count} action${ld.count === 1 ? "" : "s"}` : "no decision yet"),
+      h("span", { class: "right", title: "stored command results used / cap" }, `${fmt(ac.results_used)} / ${fmt(ac.results_cap)} result slots`)),
+    tally.length ? h("div", { class: "totals" }, tally) : null,
+    rows.length
+      ? h("div", { class: "scroll" }, h("table", {},
+          h("thead", {}, h("tr", {}, h("th", {}, "Status"), h("th", {}, "Action"), h("th", {}, "Why"), h("th", { class: "num" }, "Score"))),
+          h("tbody", {}, rows)))
+      : h("div", { class: "empty" }, "The agent has not decided anything yet. The scripted exercise drives the connection itself, so it shows no actions here."));
+}
+
+// --- offers and trades ------------------------------------------------------------
+function offerTable(rows, direction) {
+  if (!rows.length) return h("div", { class: "empty" }, direction === "out" ? "No open offers of ours." : "Nothing addressed to us.");
+  return h("div", { class: "scroll" }, h("table", {},
+    h("thead", {}, h("tr", {},
+      h("th", {}, direction === "out" ? "To" : "From"), h("th", {}, "We give"), h("th", {}, "We get"), h("th", { class: "num" }, "Expires in"))),
+    h("tbody", {}, rows.map((o) => h("tr", { title: o.offer_id },
+      h("td", {}, station(o.counterparty)),
+      h("td", {}, bundle(o.we_give)),
+      h("td", {}, bundle(o.we_get)),
+      h("td", { class: "num" }, ticksLeft(o.ticks_left)))))));
+}
+
+function renderOffers() {
+  const of = data.offers;
+  $("offers").replaceChildren(
+    h("h2", {}, "Open offers", h("span", { class: "right" }, `${fmt(of.market_open)} open across the market`)),
+    h("div", { class: "offers-block" },
+      h("h3", {}, "Outgoing", h("span", { class: "count" }, `${of.outgoing.length} / ${of.max_outgoing} slots`)),
+      offerTable(of.outgoing, "out")),
+    h("div", { class: "offers-block" },
+      h("h3", {}, "Incoming", h("span", { class: "count" }, `${of.incoming.length}, we can accept`)),
+      offerTable(of.incoming, "in")));
+}
+
+function renderTrades() {
+  const tr = data.trades;
+  $("trades").replaceChildren(
+    h("h2", {}, "Recent trades", h("span", { class: "count" }, `${fmt(tr.total)} settled this run`)),
+    tr.recent.length
+      ? h("div", { class: "scroll" }, h("table", {},
+          h("thead", {}, h("tr", {}, h("th", { class: "num" }, "Tick"), h("th", {}, "With"), h("th", {}, "We gave"), h("th", {}, "We got"), h("th", {}, "Proposed by"))),
+          h("tbody", {}, tr.recent.map((t) => h("tr", { title: t.transaction_id },
+            h("td", { class: "num" }, t.settled_tick),
+            h("td", {}, station(t.counterparty)),
+            h("td", {}, bundle(t.we_gave)),
+            h("td", {}, bundle(t.we_got)),
+            h("td", { class: "reason" }, t.we_proposed ? "us" : "them"))))))
+      : h("div", { class: "empty" }, "No trades settled yet."));
+}
+
+// The sparklines' numbers as a table, newest tick first.
+function renderHistory() {
+  const res = data.reserves;
+  const ticks = res.length ? res[0].history.map((p) => p[0]) : [];
+  const details = $("history");
+  details.replaceChildren(
+    h("summary", {}, `Reserve history (last ${ticks.length} tick${ticks.length === 1 ? "" : "s"})`),
+    h("div", { class: "scroll" }, h("table", {},
+      h("thead", {}, h("tr", {}, h("th", { class: "num" }, "Tick"),
+        res.map((r) => h("th", { class: "num" }, h("span", { class: "chip" }, h("span", { class: `dot ${r.resource}` }), r.resource))))),
+      h("tbody", {}, ticks.map((t, i) => i).reverse().map((i) => h("tr", {},
+        h("td", { class: "num" }, ticks[i]),
+        res.map((r) => h("td", { class: "num" }, fmt(r.history[i][1])))))))));
+  details.open = historyOpen;
+}
+
+// --- page ------------------------------------------------------------------------
+function render() {
+  renderBar();
+  const ready = data && data.header;
+  $("waiting").hidden = !!ready;
+  $("content").hidden = !ready;
+  const dash = data && data.dashboard;
+  $("footer").replaceChildren(dash && dash.errors
+    ? `dashboard: ${dash.errors} internal error${dash.errors === 1 ? "" : "s"} (trading unaffected) · last: ${dash.last_error}`
+    : "");
+  if (!ready) return;
+
+  const hd = data.header;
+  document.title = `${hd.station} · t${hd.tick}/${hd.duration_ticks} · Bazaar`;
+  const oc = hd.outcome;
+  $("banner").replaceChildren(oc
+    ? h("div", { class: "banner" },
+        oc.aborted ? pill("critical", "✕", "run aborted")
+          : oc.collective_success ? pill("good", "✓", "collective success")
+          : oc.collective_success === false ? pill("critical", "✕", "collective failure")
+          : pill("neutral", "■", "run over"),
+        " ",
+        oc.self_failed ? pill("critical", "✕", "our station failed") : pill("good", "✓", "our station survived"))
+    : "");
+  $("top").replaceChildren(healthCard(), ...data.reserves.map(reserveCard));
+  renderActions();
+  renderOffers();
+  renderTrades();
+  renderHistory();
+}
+
+$("history").addEventListener("toggle", (e) => { historyOpen = e.target.open; });
+
+function connect() {
+  const scheme = location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${scheme}://${location.host}/ws`);
+  ws.onopen = () => { socketOpen = true; $("main").classList.remove("dimmed"); updateLive(); };
+  ws.onmessage = (event) => {
+    data = JSON.parse(event.data);
+    lastMessageAt = Date.now();
+    render();
+  };
+  ws.onclose = () => {
+    // Keep the last picture, dimmed: after a run ends it is the thing worth reading.
+    socketOpen = false;
+    $("main").classList.add("dimmed");
+    updateLive();
+    setTimeout(connect, 2000);
+  };
+}
+
+render();
+connect();
+setInterval(updateLive, 250);
+</script>
+</body>
+</html>

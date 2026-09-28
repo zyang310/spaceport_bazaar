@@ -24,7 +24,7 @@ Where this repo's docs and the starter README disagree, **the README wins.**
 ## 2. Commands
 
 ```bash
-# Tests — 165 of them, all must pass. Fast (<1s).
+# Tests — 211 of them, all must pass. Fast (<1s).
 python -m pytest tests/ -q
 
 # One file
@@ -35,6 +35,11 @@ python -m bazaar --policy hustler
 
 # Run one agent while logging what another would have done, sending nothing
 python -m bazaar --policy scrooge --shadow hustler
+
+# Every run serves a live dashboard at http://127.0.0.1:8765/ (JSON at /view.json).
+# Turn it off, or move it
+python -m bazaar --policy hustler --no-dashboard
+python -m bazaar --policy hustler --dashboard-port 8800
 
 # The bundled practice server (start it first, in another terminal)
 cd artifacts/bazaar-protobuf-starter-linux && ./spaceport-validate-linux-arm64 --codec protobuf
@@ -69,6 +74,7 @@ not otherwise contain the literal string.
 | `bazaar/runner.py` | The loop, shadow mode, fixture capture. |
 | `bazaar/config.py` | Connection settings and every tunable weight. |
 | `bazaar/runlog.py` | Per-run JSONL logs under `runs/` (gitignored). |
+| `bazaar/dashboard/` | Live page per run. `view.py` is pure; `hub.py` records the action lifecycle; `server.py` serves page + WebSocket on one port. Must never break trading: hooks swallow their own errors. |
 | `bazaar/network/probe.py`, `walkthrough.py` | Standalone diagnostics, outside the layers. |
 | `bazaar/memory/` | Empty stubs. Nothing persists across ticks yet. |
 
@@ -127,7 +133,7 @@ Existing policies, as reference points:
 | --- | --- |
 | `utility` | Trade on projected need over a 5-tick horizon. The baseline. |
 | `scrooge` | Defend reserves. Only shops when short. Never gives anything away. |
-| `hustler` | Volume over margin. Always listed, accepts at a small loss. |
+| `hustler` | Volume over margin. Always listed, accepts at a small loss. Pays in its specialty, to anyone, and never buys it. |
 | `scripted` | Not an agent — replays the guide's 10-step exercise. Drives the connection directly because it must react to results and protocol errors, not just states. |
 
 ---
@@ -194,7 +200,7 @@ Match the surrounding code. Concretely:
 ## 9. Before you finish
 
 ```bash
-python -m pytest tests/ -q                                    # 165 passing
+python -m pytest tests/ -q                                    # 211 passing
 grep -rn "bazaar_pb2" bazaar/ --include="*.py" | grep -v "^bazaar/generated/"
 git status --short                                            # no .env, no webb_docs/
 ```

@@ -77,6 +77,36 @@ class ShadowRecorder:
         self.run_log.write("shadow.jsonl", record)
 
 
+def fan_out(*callbacks):
+    """One ``on_state`` callback that calls each of several in turn.
+
+    ``BazaarClient`` takes a single callback, and a run may want both a shadow
+    and the dashboard watching.  ``None`` entries are dropped, so optional
+    observers can be passed unconditionally.
+    """
+    live = [callback for callback in callbacks if callback is not None]
+    if not live:
+        return None
+    if len(live) == 1:
+        return live[0]
+
+    def call_all(state: model.State) -> None:
+        for callback in live:
+            callback(state)
+
+    return call_all
+
+
+class _NoActivity:
+    """Stands in for the dashboard when nobody is watching, so the loop needs no ``if``s."""
+
+    def decided(self, state, actions) -> None: ...
+    def sent(self, action, request_id) -> None: ...
+    def resolved(self, request_id, result) -> None: ...
+    def rejected(self, action, reason) -> None: ...
+    def errored(self, request_id, message) -> None: ...
+
+
 class RunOutcome:
     """What happened, in the form the CLI turns into an exit code."""
 
@@ -114,7 +144,7 @@ async def run_scripted(client, policy, outcome: RunOutcome) -> RunOutcome:
 
 
 async def run_utility(
-    client, policy, run_log, outcome: RunOutcome, max_seconds: float | None
+    client, policy, run_log, outcome: RunOutcome, max_seconds: float | None, activity=None
 ) -> RunOutcome:
     """Feed the agent states and carry out what it decides.
 
@@ -125,7 +155,11 @@ async def run_utility(
     sit in ``PHASE_READY`` for a while before an instructor starts it, and the
     agent should stay connected and waiting rather than give up. Stop an
     unlimited run with Ctrl+C, or pass ``--max-seconds`` for a bounded one.
+
+    ``activity`` is told each action's progress -- decided, sent, answered --
+    which a state never reports.  The dashboard is the one in practice.
     """
+    activity = activity or _NoActivity()
     loop = asyncio.get_running_loop()
     deadline = None if max_seconds is None else loop.time() + max_seconds
 
@@ -166,6 +200,7 @@ async def run_utility(
             f"water={water} food={food} components={components}"
         )
         chosen = policy.decide(state)
+        activity.decided(state, chosen)
         run_log.write(
             "decisions.jsonl",
             {
@@ -194,12 +229,15 @@ async def run_utility(
             except limits.CommandRejected as exc:
                 outcome.fail(f"agent produced an illegal command: {exc}")
                 print(f"    REJECTED {action.describe()} -- {exc}")
+                activity.rejected(action, str(exc))
                 continue
 
             print(f"    {action.describe()}  <- {action.reason}")
+            activity.sent(action, request_id)
             try:
                 result = await _send_with_one_retry(client, message, raw, request_id)
             except ProtocolErrorReceived as exc:
+                activity.errored(request_id, exc.error.code.name)
                 outcome.protocol_errors.append(exc.error)
                 run_log.write(
                     "decisions.jsonl",
@@ -210,9 +248,11 @@ async def run_utility(
                     outcome.fail(f"{request_id} was rejected as a bad message")
                 return outcome  # the run cannot continue meaningfully
             except Exception as exc:
+                activity.errored(request_id, f"{type(exc).__name__}: {exc}")
                 outcome.fail(f"{request_id} got no answer: {type(exc).__name__}: {exc}")
                 return outcome
 
+            activity.resolved(request_id, result)
             run_log.write(
                 "decisions.jsonl",
                 {

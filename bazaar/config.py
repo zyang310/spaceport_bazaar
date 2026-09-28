@@ -165,6 +165,10 @@ class HustlerWeights:
 
     The one thing it will not do is trade itself to death, which is what
     ``floor_ticks`` is for.
+
+    Its currency is its specialty.  The station makes more of it every tick
+    while everything else only drains, so the specialty is what it pays with,
+    generously and to anyone selling what it lacks, and never what it buys.
     """
 
     #: A short lookahead on purpose: the Hustler trades on what is in front of
@@ -180,6 +184,9 @@ class HustlerWeights:
     price_deficit: float = 2.0
     price_neutral: float = 1.0
     price_surplus: float = 0.75
+    #: What a unit of our own specialty is worth while it is above the floor.
+    #: Production refills it every tick, so parting with it costs little.
+    price_specialty: float = 0.25
 
     #: How much value the Hustler will knowingly give up to keep a trade
     #: moving. A small loss is the cost of doing business; this is set wide
@@ -193,6 +200,17 @@ class HustlerWeights:
     #: Several offers may go to the same peer, unlike the other agents.
     max_offers_per_peer: int = 2
 
+    #: Offers paid in the specialty are sized separately: a bigger lot, at a
+    #: price a peer will notice.  Three for one is roughly what the live run
+    #: could afford: about 570 components held or made over 120 ticks, against
+    #: about 200 water and food to buy.  Lower it if the specialty runs dry.
+    specialty_offer_ratio: int = 3
+    specialty_receive_qty: int = 2
+    #: Offer the specialty even to a peer whose listing does not seek it.  A
+    #: listing is a hint, not a contract, and a peer selling what we lack may
+    #: well take a good price for it.
+    unsolicited_specialty: bool = True
+
     #: Keep listings short-lived so they are refreshed often.
     advertisement_ttl_ticks: int = 3
     offer_ttl_ticks: int = 3
@@ -204,3 +222,30 @@ class HustlerWeights:
 
 
 DEFAULT_HUSTLER = HustlerWeights()
+
+
+@dataclass(frozen=True)
+class DashboardSettings:
+    """The live page served beside every run.
+
+    It binds to localhost only: the page shows our inventory and plans, which
+    is nobody else's business, and VS Code forwards the port out of the
+    devcontainer on its own.
+    """
+
+    host: str = "127.0.0.1"
+    port: int = 8765
+
+    #: How much of the past each panel keeps.  The page is a glance, not a log;
+    #: the full record is in ``runs/``.
+    recent_trades: int = 15
+    recent_actions: int = 40
+    history_ticks: int = 60
+
+    #: Ticks of cover below which a reserve is shown as critical, then low.
+    #: Critical matches the Hustler's floor; low, Scrooge's danger line.
+    critical_cover_ticks: float = 2.0
+    low_cover_ticks: float = 5.0
+
+
+DASHBOARD = DashboardSettings()

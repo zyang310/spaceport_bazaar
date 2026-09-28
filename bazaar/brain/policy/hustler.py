@@ -17,6 +17,11 @@ What that means concretely:
    perfect trade that never happens.
 4. **It will not trade itself to death.**  ``floor_ticks`` of cover is the one
    line it holds, and nothing crosses it.
+5. **It pays in what it makes.**  The specialty piles up every tick while
+   everything else only drains, so the specialty is the currency: priced low,
+   offered first and in bulk, offered even to peers who did not ask for it, and
+   never bought.  A live run died holding 283 components after spending its
+   water on more of them; this is the fix.
 
 The short horizon is deliberate: the Hustler trades on what is in front of it,
 not on what it might want ten ticks from now.  Tunables are in
@@ -69,18 +74,26 @@ class HustlerPolicy:
             for resource in self._order(state)
         }
 
-    def prices(self, needs) -> dict:
+    def prices(self, state, needs, cover) -> dict:
+        """What a unit of each resource is worth to us right now.
+
+        The specialty is cheap while it is our currency, because production
+        refills it.  Once it is the thing running short it is priced like
+        anything else.
+        """
         weights = self.weights
-        return {
-            resource: (
-                weights.price_deficit
-                if need > 0
-                else weights.price_surplus
-                if need < 0
-                else weights.price_neutral
-            )
-            for resource, need in needs.items()
-        }
+        currency = self._currency(state, cover)
+        priced = {}
+        for resource, need in needs.items():
+            if resource == currency:
+                priced[resource] = weights.price_specialty
+            elif need > 0:
+                priced[resource] = weights.price_deficit
+            elif need < 0:
+                priced[resource] = weights.price_surplus
+            else:
+                priced[resource] = weights.price_neutral
+        return priced
 
     # --- valuation -------------------------------------------------------
     def value(self, prices, bundle: model.Bundle) -> float:
@@ -120,14 +133,51 @@ class HustlerPolicy:
             and state.observation.inventory.get(r) >= self.weights.offer_ratio
         )
 
-    def _wanted(self, state, needs) -> tuple:
-        """What we would take. Anything not in clear surplus counts."""
-        return tuple(r for r in self._order(state) if needs[r] >= 0) or tuple(self._order(state))
+    def _currency(self, state, cover) -> model.Resource | None:
+        """The specialty, while there is enough of it to pay with.
+
+        Below the floor it is just another resource we are short of, and is
+        bought and guarded like one.
+        """
+        specialty = state.observation.specialty
+        return specialty if specialty in self._spare(state, cover) else None
+
+    def _wanted(self, state, cover, needs) -> tuple:
+        """What we would take.
+
+        With a currency, everything else.  We make none of it and burn all of
+        it, and the short horizon would otherwise ignore food at seven ticks of
+        cover while components pile up; prices already rank what is shortest
+        first.  Never the currency itself: buying more of it only turns
+        something that drains into something that piles up.
+
+        Without one, anything not in clear surplus counts.
+        """
+        currency = self._currency(state, cover)
+        others = [r for r in self._order(state) if r != currency]
+        if currency is not None:
+            return tuple(others)
+        return tuple(r for r in others if needs[r] >= 0) or tuple(others)
+
+    def _selling(self, state, cover) -> tuple:
+        """What to list for sale: the currency alone, if we have one.
+
+        Listing water as well invites peers to trade it away from us for more
+        of what we make.  With no currency, anything spare is listed.
+        """
+        currency = self._currency(state, cover)
+        return (currency,) if currency is not None else self._spare(state, cover)
 
     # --- candidates ------------------------------------------------------
     def _accepts(self, state, cover, prices) -> list:
-        """Take nearly everything: the bar is a small loss, not a profit."""
+        """Take nearly everything: the bar is a small loss, not a profit.
+
+        The exception is paying for our own specialty.  The acceptable loss is
+        wide enough that one water for one component would clear it, and that
+        trade, repeated, is how a station starves on a full warehouse.
+        """
         weights = self.weights
+        currency = self._currency(state, cover)
         chosen = []
         for offer in sorted(store.incoming_open_offers(state), key=lambda o: o.offer_id):
             received, paid = offer.give, offer.receive
@@ -140,6 +190,8 @@ class HustlerPolicy:
                         score=worth + weights.price_deficit,
                     )
                 )
+                continue
+            if currency is not None and received.get(currency) > 0:
                 continue
             if not self._affordable(state, paid):
                 continue
@@ -156,15 +208,73 @@ class HustlerPolicy:
             )
         return chosen
 
-    def _offers(self, state, cover, prices, needs) -> list:
-        """Offer to everyone, pairing whatever they sell against whatever they want.
+    def _terms(self, state, cover, advertisement, want) -> list:
+        """Ways to pay a peer for ``want``, best first, as ``(pay, receive, give)``.
 
-        Several offers may go to the same peer: the point is to have as many
-        live proposals out as the rules allow.
+        The currency leads, in its own lot size, and goes whether or not the
+        peer's listing seeks it.  Anything else must be spare and sought.
         """
         weights = self.weights
+        currency = self._currency(state, cover)
         spare = self._spare(state, cover)
-        wanted = self._wanted(state, needs)
+        terms = []
+        if currency is not None and (
+            weights.unsolicited_specialty or currency in advertisement.seeking
+        ):
+            terms.append(
+                (
+                    currency,
+                    weights.specialty_receive_qty,
+                    weights.specialty_offer_ratio * weights.specialty_receive_qty,
+                )
+            )
+        for pay in self._order(state):
+            if pay in (want, currency) or pay not in advertisement.seeking or pay not in spare:
+                continue
+            terms.append((pay, weights.offer_receive_qty, weights.offer_ratio))
+        return terms
+
+    def _proposal(self, state, cover, prices, advertisement, want):
+        """The best offer we can make a peer for ``want``, or ``None``.
+
+        Only one per resource sought: once the currency can pay, settling for
+        water as well just swaps one drain for another.
+        """
+        weights = self.weights
+        for pay, receive_qty, give_qty in self._terms(state, cover, advertisement, want):
+            receive = model.Bundle.of(
+                tuple(receive_qty if r == want else 0 for r in _BUNDLE_ORDER)
+            )
+            give = model.Bundle.of(tuple(give_qty if r == pay else 0 for r in _BUNDLE_ORDER))
+            if give.is_zero() or not self._affordable(state, give):
+                continue
+            if self._breaches_floor(state, cover, receive, give):
+                continue
+            worth = self.value(prices, receive) - self.value(prices, give)
+            if worth < -weights.acceptable_loss:
+                continue
+            unasked = "" if pay in advertisement.seeking else ", unasked"
+            return actions.Offer(
+                recipient_id=advertisement.station_id,
+                give=give.as_tuple(),
+                receive=receive.as_tuple(),
+                expires_tick=self._expiry(state, weights.offer_ttl_ticks, "max_offer_ttl_ticks"),
+                reason=(
+                    f"{advertisement.station_id} sells "
+                    f"{want.name.removeprefix('RESOURCE_')} for "
+                    f"{pay.name.removeprefix('RESOURCE_')}{unasked}"
+                ),
+                score=worth + weights.offer_bonus,
+            )
+        return None
+
+    def _offers(self, state, cover, prices, wanted) -> list:
+        """Offer to everyone who sells something we want.
+
+        Several offers may go to the same peer, one per resource they sell: the
+        point is to have as many live proposals out as the rules allow.
+        """
+        weights = self.weights
         open_per_peer = {}
         for mine in store.my_open_offers(state):
             open_per_peer[mine.recipient_id] = open_per_peer.get(mine.recipient_id, 0) + 1
@@ -172,55 +282,22 @@ class HustlerPolicy:
         chosen = []
         for advertisement in store.peer_active_advertisements(state):
             room = weights.max_offers_per_peer - open_per_peer.get(advertisement.station_id, 0)
-            if room <= 0:
-                continue
             made = 0
             for want in self._order(state):
                 if made >= room:
                     break
                 if want not in advertisement.selling or want not in wanted:
                     continue
-                for pay in self._order(state):
-                    if made >= room:
-                        break
-                    if pay == want or pay not in advertisement.seeking or pay not in spare:
-                        continue
-                    receive = model.Bundle.of(
-                        tuple(weights.offer_receive_qty if r == want else 0 for r in _BUNDLE_ORDER)
-                    )
-                    give = model.Bundle.of(
-                        tuple(weights.offer_ratio if r == pay else 0 for r in _BUNDLE_ORDER)
-                    )
-                    if give.is_zero() or not self._affordable(state, give):
-                        continue
-                    if self._breaches_floor(state, cover, receive, give):
-                        continue
-                    worth = self.value(prices, receive) - self.value(prices, give)
-                    if worth < -weights.acceptable_loss:
-                        continue
+                proposal = self._proposal(state, cover, prices, advertisement, want)
+                if proposal is not None:
                     made += 1
-                    chosen.append(
-                        actions.Offer(
-                            recipient_id=advertisement.station_id,
-                            give=give.as_tuple(),
-                            receive=receive.as_tuple(),
-                            expires_tick=self._expiry(
-                                state, weights.offer_ttl_ticks, "max_offer_ttl_ticks"
-                            ),
-                            reason=(
-                                f"{advertisement.station_id} sells "
-                                f"{want.name.removeprefix('RESOURCE_')} for "
-                                f"{pay.name.removeprefix('RESOURCE_')}"
-                            ),
-                            score=worth + weights.offer_bonus,
-                        )
-                    )
+                    chosen.append(proposal)
         return chosen
 
-    def _advertise(self, state, cover, needs) -> list:
+    def _advertise(self, state, cover, wanted) -> list:
         """Keep a listing up at all times; a peer who cannot find us cannot trade."""
-        selling = self._spare(state, cover)
-        seeking = self._wanted(state, needs)
+        selling = self._selling(state, cover)
+        seeking = wanted
         if not selling and not seeking:
             return []
         current = store.my_active_advertisement(state)
@@ -266,12 +343,13 @@ class HustlerPolicy:
 
         cover = self.cover(state)
         needs = self.needs(state)
-        prices = self.prices(needs)
+        prices = self.prices(state, needs, cover)
+        wanted = self._wanted(state, cover, needs)
 
         candidates = [
             *self._accepts(state, cover, prices),
-            *self._offers(state, cover, prices, needs),
-            *self._advertise(state, cover, needs),
+            *self._offers(state, cover, prices, wanted),
+            *self._advertise(state, cover, wanted),
             *self._withdrawals(state, prices),
         ]
         ranked = sorted(candidates, key=lambda action: -action.score)
