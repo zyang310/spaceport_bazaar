@@ -26,7 +26,7 @@ PRACTICE_URL = "ws://127.0.0.1:3001/ws"
 
 CREDENTIALS_PATH = STARTER_DIR / "validation-credentials.json"
 REPORT_PATH = STARTER_DIR / "validation-report.json"
-STATION_ID = "P01"
+STATION_ID = "P08"
 RUNS_DIR = ROOT / "runs"
 
 #: Where the token comes from, in preference order.
