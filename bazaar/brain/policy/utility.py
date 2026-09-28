@@ -42,6 +42,21 @@ class UtilityPolicy:
             projected[resource] = target - observation.inventory.get(resource)
         return projected
 
+    def headroom(self, state: model.State) -> dict[model.Resource, int]:
+        """How much of each resource we could pay out and still keep our reserve.
+
+        The reserve is ``reserve_ticks`` of upkeep.  Production is left out, so
+        the floor holds even if nothing arrives.  Negative means we are already
+        under it.
+        """
+        observation = state.observation
+        reserve_ticks = self.weights.reserve_ticks
+        return {
+            resource: observation.inventory.get(resource)
+            - observation.upkeep_per_tick.get(resource) * reserve_ticks
+            for resource in self._order(state)
+        }
+
     def prices(self, needs: dict) -> dict[model.Resource, float]:
         """What a unit of each resource is worth to us right now."""
         weights = self.weights
@@ -92,6 +107,25 @@ class UtilityPolicy:
             if after > 0 and need <= 0:
                 return True
         return False
+
+    def _dips_into_reserve(self, paid: model.Bundle, spendable: dict) -> bool:
+        """Would paying this take any resource below its reserve?
+
+        Only what we actually pay counts: a resource already under its floor is
+        not a reason to refuse a trade that does not spend it.
+        """
+        return any(0 < paid.get(r) and paid.get(r) > left for r, left in spendable.items())
+
+    def _payment(self, action, asked: dict) -> model.Bundle:
+        """What an action costs us if it settles.
+
+        ``asked`` maps each incoming offer's ID to the price it asks of us.
+        """
+        if isinstance(action, actions.Offer):
+            return model.Bundle.of(action.give)
+        if isinstance(action, actions.Accept):
+            return asked[action.offer_id]
+        return model.Bundle()
 
     def _expiry(self, state, ttl_ticks: int, ceiling_rule: str) -> int:
         """An expiry that is in the future and inside the run's ceiling."""
@@ -195,18 +229,27 @@ class UtilityPolicy:
         return chosen
 
     def _withdrawals(self, state, prices, surplus, deficit) -> list:
-        """Drop our own offers that have gone sour, and a listing saying nothing."""
+        """Drop our own offers that have gone sour, and a listing saying nothing.
+
+        Sour means worth less than nothing to us now, or paying into the
+        reserve: an open offer can be accepted at any moment, and upkeep may
+        have eaten the margin it had when we made it.
+        """
+        headroom = self.headroom(state)
         chosen = []
         for offer in sorted(store.my_open_offers(state), key=lambda o: o.offer_id):
             worth = self.value(prices, offer.receive, offer.give)
             if worth < 0:
-                chosen.append(
-                    actions.Withdraw(
-                        object_id=offer.offer_id,
-                        reason=f"our offer is now worth {worth:.1f} to us",
-                        score=self.weights.withdraw_score,
-                    )
+                reason = f"our offer is now worth {worth:.1f} to us"
+            elif self._dips_into_reserve(offer.give, headroom):
+                reason = f"paying {offer.give.as_tuple()} would now dip into our reserve"
+            else:
+                continue
+            chosen.append(
+                actions.Withdraw(
+                    object_id=offer.offer_id, reason=reason, score=self.weights.withdraw_score
                 )
+            )
         if not surplus and not deficit:
             current = store.my_active_advertisement(state)
             if current is not None:
@@ -243,22 +286,36 @@ class UtilityPolicy:
         return self._within_limits(state, ranked)
 
     def _within_limits(self, state, ranked: list) -> list:
-        """Obey the run's command limits, best-scoring first.
+        """Obey the run's command limits and our reserve, best-scoring first.
 
         Every command we send stores a result, and the run caps how many it
         stores, so capacity is the hard ceiling: once it is gone we send
         nothing, whatever the score.
+
+        The reserve is checked here rather than per candidate so that payments
+        add up: what our open offers already promise is spoken for, and two
+        trades that each fit alone cannot drain it together.
         """
         budget = min(state.rules.new_commands_per_station_per_tick, store.remaining_result_capacity(state))
         offer_slots = store.remaining_offer_slots(state)
+        spendable = self.headroom(state)
+        for offer in store.my_open_offers(state):
+            for resource in spendable:
+                spendable[resource] -= offer.give.get(resource)
+        asked = {offer.offer_id: offer.receive for offer in store.incoming_open_offers(state)}
         chosen = []
         for action in ranked:
             if len(chosen) >= budget:
                 break
+            paid = self._payment(action, asked)
+            if self._dips_into_reserve(paid, spendable):
+                continue
             if isinstance(action, actions.Offer):
                 if offer_slots <= 0:
                     continue
                 offer_slots -= 1
+            for resource in spendable:
+                spendable[resource] -= paid.get(resource)
             chosen.append(action)
         return chosen
 

@@ -61,13 +61,16 @@ class PolicyWeights:
     """What the utility agent cares about, and how much.
 
     ``horizon`` and ``buffer`` decide what counts as a deficit; the three prices
-    decide what a resource is worth once it does.
+    decide what a resource is worth once it does.  ``reserve_ticks`` is a hard
+    floor under both: no trade may pay a resource out below it.
     """
 
     #: How many ticks ahead to project upkeep when sizing a need.
     horizon: int = 5
     #: Units to keep on hand beyond projected upkeep.
     buffer: int = 2
+    #: Ticks of upkeep we never trade below, however good the deal looks.
+    reserve_ticks: int = 3
 
     #: Value of a unit we are short of, comfortable with, and holding spare.
     price_deficit: float = 3.0

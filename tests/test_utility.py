@@ -167,6 +167,50 @@ def test_an_offer_that_turned_negative_is_withdrawn():
     assert any(isinstance(a, actions.Withdraw) and a.object_id == "sour-1" for a in decided)
 
 
+# --- reserve ---------------------------------------------------------------
+# Upkeep is (1,1,0) throughout, so the default three-tick reserve is (3,3,0).
+
+def test_an_offer_paying_below_the_reserve_is_refused_even_at_a_good_price():
+    # Water is already short, so only the reserve stops us paying it away for
+    # food we are even shorter of.  At 5 water, paying 2 leaves exactly 3.
+    tempting = offer(offer_id="drain-1", give=(0, 5, 0), receive=(2, 0, 0))
+    at_four = decide(observation=observation(inventory=bundle(4, 0, 30)), offers=[tempting])
+    at_five = decide(observation=observation(inventory=bundle(5, 0, 30)), offers=[tempting])
+    assert not any(isinstance(a, actions.Accept) for a in at_four)
+    assert any(isinstance(a, actions.Accept) for a in at_five)
+
+
+def test_a_gift_is_accepted_even_when_we_are_under_the_reserve_everywhere():
+    broke = observation(inventory=bundle(0, 0, 0))
+    decided = decide(observation=broke, offers=[offer(offer_id="gift-1")])
+    assert any(isinstance(a, actions.Accept) for a in decided)
+
+
+def test_two_trades_cannot_drain_the_reserve_together():
+    # Each costs 6 of our 10 spare water: either alone is fine, both are not.
+    offers = [
+        offer(offer_id="a-1", proposer_id="P02", give=(0, 4, 0), receive=(6, 0, 0)),
+        offer(offer_id="b-1", proposer_id="P03", give=(0, 4, 0), receive=(6, 0, 0)),
+    ]
+    decided = decide(observation=observation(inventory=bundle(13, 0, 30)), offers=offers)
+    assert [a.offer_id for a in decided if isinstance(a, actions.Accept)] == ["a-1"]
+
+
+def test_water_promised_in_an_open_offer_is_already_spoken_for():
+    ours = offer(offer_id="ours", proposer_id="P01", recipient_id="P03", give=(6, 0, 0), receive=(0, 3, 0))
+    theirs = offer(offer_id="theirs", give=(0, 4, 0), receive=(6, 0, 0))
+    decided = decide(observation=observation(inventory=bundle(13, 0, 30)), offers=[ours, theirs])
+    assert not any(isinstance(a, actions.Accept) for a in decided)
+    assert not any(isinstance(a, actions.Withdraw) for a in decided)
+
+
+def test_an_open_offer_that_now_dips_into_the_reserve_is_withdrawn():
+    # Still worth it at our prices, but upkeep has left no water to spare.
+    ours = offer(offer_id="ours", proposer_id="P01", recipient_id="P02", give=(1, 0, 0), receive=(0, 2, 0))
+    decided = decide(observation=observation(inventory=bundle(3, 0, 30)), offers=[ours])
+    assert any(isinstance(a, actions.Withdraw) and a.object_id == "ours" for a in decided)
+
+
 # --- limits ----------------------------------------------------------------
 
 def test_never_more_actions_than_the_per_tick_command_limit():
