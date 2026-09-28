@@ -1,13 +1,13 @@
 """Command line entry point.
 
-    python -m bazaar --policy scripted|utility [--shadow utility]
+    python -m bazaar --policy scripted|utility|scrooge|hustler [--shadow POLICY]
                      [--capture-fixtures] [--url URL] [--max-seconds N]
 
 The token comes from ``$BAZAAR_TOKEN`` or a gitignored ``.env``, falling back
 to a practice-server credentials file.  It is never printed; only its source
 is.
 
-``--policy utility`` runs with no time limit by default, so it stays connected
+An agent policy runs with no time limit by default, so it stays connected
 while a real game sits in ``PHASE_READY`` awaiting the instructor.  Stop it
 with Ctrl+C, or bound it with ``--max-seconds``.  The scripted exercise always
 ends on its own.
@@ -22,8 +22,8 @@ import sys
 import time
 
 from . import config, runner
+from .brain.policy import AGENTS
 from .brain.policy.scripted import ScriptedPolicy
-from .brain.policy.utility import UtilityPolicy
 from .network.transport import BazaarClient, ConnectionFailed, resolve_token
 from .runlog import RunLog
 
@@ -32,13 +32,17 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="python -m bazaar", description=__doc__)
     parser.add_argument(
         "--policy",
-        choices=("scripted", "utility"),
+        choices=("scripted", *AGENTS),
         default="scripted",
-        help="scripted replays the guide's exercise; utility runs the agent",
+        help=(
+            "scripted replays the guide's exercise; utility trades on projected "
+            "need; scrooge defends its reserves and never gives anything away; "
+            "hustler trades as often as the rules allow"
+        ),
     )
     parser.add_argument(
         "--shadow",
-        choices=("utility",),
+        choices=tuple(AGENTS),
         default=None,
         help="run this policy on every state and log what it would do, without sending it",
     )
@@ -59,7 +63,7 @@ def parse_args(argv=None) -> argparse.Namespace:
         type=float,
         default=None,
         help=(
-            "time limit for --policy utility; unlimited by default, so it stays "
+            "time limit for an agent policy; unlimited by default, so it stays "
             "connected through PHASE_READY until Ctrl+C (the scripted run always "
             "ends on its own)"
         ),
@@ -78,8 +82,8 @@ async def main_async(args: argparse.Namespace) -> int:
     print(f"logging to {run_dir}")
 
     shadow = None
-    if args.shadow == "utility":
-        shadow = runner.ShadowRecorder(UtilityPolicy(), run_log)
+    if args.shadow:
+        shadow = runner.ShadowRecorder(AGENTS[args.shadow](), run_log)
     capture = runner.FixtureCapture(config.ROOT / "tests" / "fixtures") if args.capture_fixtures else None
 
     outcome = runner.RunOutcome()
@@ -96,7 +100,7 @@ async def main_async(args: argparse.Namespace) -> int:
                 policy = ScriptedPolicy()
                 await runner.run_scripted(client, policy, outcome)
             else:
-                policy = UtilityPolicy()
+                policy = AGENTS[args.policy]()
                 await runner.run_utility(client, policy, run_log, outcome, args.max_seconds)
 
             run_log.write(
