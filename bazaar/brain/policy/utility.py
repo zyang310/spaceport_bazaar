@@ -42,18 +42,35 @@ class UtilityPolicy:
             projected[resource] = target - observation.inventory.get(resource)
         return projected
 
-    def headroom(self, state: model.State) -> dict[model.Resource, int]:
-        """How much of each resource we could pay out and still keep our reserve.
+    def drain(self, state: model.State) -> dict[model.Resource, int]:
+        """How much of each resource we expect to lose per tick without trading.
 
-        The reserve is ``reserve_ticks`` of upkeep.  Production is left out, so
-        the floor holds even if nothing arrives.  Negative means we are already
-        under it.
+        Upkeep net of what we produced last tick, and never negative: stock we
+        have not produced yet is not something to spend.
+        """
+        observation = state.observation
+        return {
+            resource: max(
+                0, observation.upkeep_per_tick.get(resource) - observation.last_production.get(resource)
+            )
+            for resource in self._order(state)
+        }
+
+    def headroom(self, state: model.State, ticks: int = 0) -> dict[model.Resource, int]:
+        """How much of each resource we could pay out ``ticks`` from now and keep our reserve.
+
+        The reserve is ``reserve_ticks`` of upkeep, with production left out, so
+        the floor holds even if nothing arrives.  Looking ahead matters because
+        a peer may take several ticks to accept an offer, and upkeep keeps
+        running meanwhile.  Negative means we are, or will be, under the floor.
         """
         observation = state.observation
         reserve_ticks = self.weights.reserve_ticks
+        drain = self.drain(state)
         return {
             resource: observation.inventory.get(resource)
             - observation.upkeep_per_tick.get(resource) * reserve_ticks
+            - drain[resource] * ticks
             for resource in self._order(state)
         }
 
@@ -232,17 +249,17 @@ class UtilityPolicy:
         """Drop our own offers that have gone sour, and a listing saying nothing.
 
         Sour means worth less than nothing to us now, or paying into the
-        reserve: an open offer can be accepted at any moment, and upkeep may
-        have eaten the margin it had when we made it.
+        reserve if it is accepted just before it expires: upkeep may have eaten
+        the margin it had when we made it.
         """
-        headroom = self.headroom(state)
         chosen = []
         for offer in sorted(store.my_open_offers(state), key=lambda o: o.offer_id):
             worth = self.value(prices, offer.receive, offer.give)
+            headroom = self.headroom(state, max(0, offer.expires_tick - state.tick))
             if worth < 0:
                 reason = f"our offer is now worth {worth:.1f} to us"
             elif self._dips_into_reserve(offer.give, headroom):
-                reason = f"paying {offer.give.as_tuple()} would now dip into our reserve"
+                reason = f"paying {offer.give.as_tuple()} by tick {offer.expires_tick} would dip into our reserve"
             else:
                 continue
             chosen.append(
@@ -294,10 +311,13 @@ class UtilityPolicy:
 
         The reserve is checked here rather than per candidate so that payments
         add up: what our open offers already promise is spoken for, and two
-        trades that each fit alone cannot drain it together.
+        trades that each fit alone cannot drain it together.  An accept settles
+        at once, but an offer we propose may be taken at any point up to its
+        expiry, so it must still fit after that many ticks of upkeep.
         """
         budget = min(state.rules.new_commands_per_station_per_tick, store.remaining_result_capacity(state))
         offer_slots = store.remaining_offer_slots(state)
+        drain = self.drain(state)
         spendable = self.headroom(state)
         for offer in store.my_open_offers(state):
             for resource in spendable:
@@ -308,7 +328,9 @@ class UtilityPolicy:
             if len(chosen) >= budget:
                 break
             paid = self._payment(action, asked)
-            if self._dips_into_reserve(paid, spendable):
+            wait = action.expires_tick - state.tick if isinstance(action, actions.Offer) else 0
+            projected = {r: left - drain[r] * wait for r, left in spendable.items()}
+            if self._dips_into_reserve(paid, projected):
                 continue
             if isinstance(action, actions.Offer):
                 if offer_slots <= 0:

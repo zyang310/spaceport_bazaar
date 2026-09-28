@@ -197,18 +197,36 @@ def test_two_trades_cannot_drain_the_reserve_together():
 
 
 def test_water_promised_in_an_open_offer_is_already_spoken_for():
+    # We make as much water as we use, so waiting on our offer costs nothing.
+    steady = observation(inventory=bundle(13, 0, 30), last_production=bundle(1, 0, 0))
     ours = offer(offer_id="ours", proposer_id="P01", recipient_id="P03", give=(6, 0, 0), receive=(0, 3, 0))
     theirs = offer(offer_id="theirs", give=(0, 4, 0), receive=(6, 0, 0))
-    decided = decide(observation=observation(inventory=bundle(13, 0, 30)), offers=[ours, theirs])
+    decided = decide(observation=steady, offers=[ours, theirs])
     assert not any(isinstance(a, actions.Accept) for a in decided)
     assert not any(isinstance(a, actions.Withdraw) for a in decided)
 
 
-def test_an_open_offer_that_now_dips_into_the_reserve_is_withdrawn():
-    # Still worth it at our prices, but upkeep has left no water to spare.
-    ours = offer(offer_id="ours", proposer_id="P01", recipient_id="P02", give=(1, 0, 0), receive=(0, 2, 0))
-    decided = decide(observation=observation(inventory=bundle(3, 0, 30)), offers=[ours])
-    assert any(isinstance(a, actions.Withdraw) and a.object_id == "ours" for a in decided)
+def test_an_offer_must_still_fit_the_reserve_when_it_expires():
+    # Paying 2 of 10 water fits today, but the peer may accept at tick 6, after
+    # six ticks of upkeep.  Producing what we use removes that drain.
+    peer = peer_selling_food()
+    draining = observation(inventory=bundle(10, 0, 30))
+    steady = observation(inventory=bundle(10, 0, 30), last_production=bundle(1, 0, 0))
+    assert not any(isinstance(a, actions.Offer) for a in decide(observation=draining, advertisements=[peer]))
+    assert any(isinstance(a, actions.Offer) for a in decide(observation=steady, advertisements=[peer]))
+
+
+def test_an_open_offer_that_would_dip_into_the_reserve_by_expiry_is_withdrawn():
+    # Paying one water fits now, but not after six more ticks of upkeep.  The
+    # same offer expiring next tick has no time to drain us, so it stays.
+    lean = observation(inventory=bundle(8, 0, 30))
+    late = offer(offer_id="late", proposer_id="P01", recipient_id="P02", give=(1, 0, 0), receive=(0, 2, 0))
+    soon = offer(
+        offer_id="soon", proposer_id="P01", recipient_id="P02", give=(1, 0, 0), receive=(0, 2, 0), expires_tick=1
+    )
+    for ours, expected in ((late, ["late"]), (soon, [])):
+        decided = decide(observation=lean, offers=[ours])
+        assert [a.object_id for a in decided if isinstance(a, actions.Withdraw)] == expected
 
 
 # --- limits ----------------------------------------------------------------
