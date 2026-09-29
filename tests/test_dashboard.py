@@ -359,6 +359,6 @@ def test_the_runner_reports_each_action_to_the_dashboard(tmp_path):
     dashboard = Dashboard()
     client = AnsweringClient(state(tick=2))
     asyncio.run(run_utility(client, AdvertiseOncePolicy(), RunLog(tmp_path), RunOutcome(), 0.2,
-                            activity=dashboard))
+                            activity=dashboard, session="s1"))
     assert client.sent == 1
-    assert [(r.status, r.request_id) for r in dashboard.actions] == [("ok", "utility-0001")]
+    assert [(r.status, r.request_id) for r in dashboard.actions] == [("ok", "utility-s1-0001")]

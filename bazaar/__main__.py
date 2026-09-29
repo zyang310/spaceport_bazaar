@@ -92,8 +92,11 @@ async def main_async(args: argparse.Namespace) -> int:
     print(f"token source: {source}")
 
     # The run ID is only known once the first state arrives, so logs start in a
-    # timestamped directory and the real run ID is recorded inside them.
-    run_dir = config.RUNS_DIR / time.strftime("%Y%m%d-%H%M%S")
+    # timestamped directory and the real run ID is recorded inside them.  The
+    # same stamp keeps this session's request IDs apart from any earlier
+    # session's in the same run, and ties each ID back to its log directory.
+    session = time.strftime("%Y%m%d-%H%M%S")
+    run_dir = config.RUNS_DIR / session
     run_log = RunLog(run_dir)
     print(f"logging to {run_dir}")
 
@@ -130,7 +133,13 @@ async def main_async(args: argparse.Namespace) -> int:
             else:
                 policy = AGENTS[args.policy]()
                 await runner.run_utility(
-                    client, policy, run_log, outcome, args.max_seconds, activity=dashboard
+                    client,
+                    policy,
+                    run_log,
+                    outcome,
+                    args.max_seconds,
+                    activity=dashboard,
+                    session=session,
                 )
 
             run_log.write(

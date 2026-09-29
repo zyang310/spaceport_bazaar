@@ -144,7 +144,14 @@ async def run_scripted(client, policy, outcome: RunOutcome) -> RunOutcome:
 
 
 async def run_utility(
-    client, policy, run_log, outcome: RunOutcome, max_seconds: float | None, activity=None
+    client,
+    policy,
+    run_log,
+    outcome: RunOutcome,
+    max_seconds: float | None,
+    activity=None,
+    *,
+    session: str,
 ) -> RunOutcome:
     """Feed the agent states and carry out what it decides.
 
@@ -158,6 +165,11 @@ async def run_utility(
 
     ``activity`` is told each action's progress -- decided, sent, answered --
     which a state never reports.  The dashboard is the one in practice.
+
+    ``session`` goes into every request ID.  The server remembers IDs for the
+    whole run, not the connection, so a client restarted mid-game that counted
+    from 1 again would have every command refused as a
+    ``RESULT_CODE_REQUEST_ID_CONFLICT``.  One live run lost all 343 that way.
     """
     activity = activity or _NoActivity()
     loop = asyncio.get_running_loop()
@@ -222,7 +234,7 @@ async def run_utility(
             if expired():
                 break
             issued += 1
-            request_id = f"utility-{issued:04d}"
+            request_id = f"utility-{session}-{issued:04d}"
             message = action.to_message(builder, request_id)
             try:
                 raw = limits.validate_command(message, state)
