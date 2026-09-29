@@ -17,7 +17,6 @@ from .factories import (
     bundle,
     observation,
     offer,
-    result,
     rules,
     state,
 )
@@ -29,20 +28,6 @@ def decide(**overrides):
 
 def kinds(decided):
     return [type(action).__name__ for action in decided]
-
-
-# --- gates -----------------------------------------------------------------
-
-def test_no_actions_unless_the_run_is_running():
-    for phase in model.Phase:
-        if phase is model.Phase.PHASE_RUNNING:
-            continue
-        assert decide(phase=phase, advertisements=[advertisement()]) == []
-
-
-def test_no_actions_from_a_failed_station():
-    """Zero health is permanent, so there is nothing to trade toward."""
-    assert decide(observation=observation(health=0), advertisements=[advertisement()]) == []
 
 
 # --- accepting -------------------------------------------------------------
@@ -229,75 +214,7 @@ def test_an_open_offer_that_would_dip_into_the_reserve_by_expiry_is_withdrawn():
         assert [a.object_id for a in decided if isinstance(a, actions.Withdraw)] == expected
 
 
-# --- limits ----------------------------------------------------------------
-
-def test_never_more_actions_than_the_per_tick_command_limit():
-    gifts = [offer(offer_id=f"gift-{n}", give=(0, 0, 1), receive=(0, 0, 0)) for n in range(4)]
-    decided = decide(rules=rules(new_commands_per_station_per_tick=2), offers=gifts)
-    assert len(decided) == 2
-
-
-def test_never_more_open_offers_than_the_rules_allow():
-    peers = [
-        advertisement(advertisement_id="p02", station_id="P02", selling=(FOOD,), seeking=(WATER,)),
-        advertisement(advertisement_id="p03", station_id="P03", selling=(FOOD,), seeking=(WATER,)),
-    ]
-    decided = decide(
-        observation=hungry_observation(),
-        advertisements=peers,
-        rules=rules(max_open_outgoing_offers=1, new_commands_per_station_per_tick=3),
-    )
-    assert len([a for a in decided if isinstance(a, actions.Offer)]) == 1
-
-
-def test_existing_open_offers_count_against_the_limit():
-    mine = offer(offer_id="ours", proposer_id="P01", recipient_id="P09", give=(2, 0, 0), receive=(0, 1, 0))
-    decided = decide(
-        observation=hungry_observation(),
-        advertisements=[peer_selling_food()],
-        offers=[mine],
-        rules=rules(max_open_outgoing_offers=1, new_commands_per_station_per_tick=3),
-    )
-    assert not any(isinstance(a, actions.Offer) for a in decided)
-
-
-def test_no_new_commands_once_stored_result_capacity_is_used_up():
-    used_up = [result(request_id=f"r{n}") for n in range(5)]
-    decided = decide(
-        request_results=used_up,
-        rules=rules(max_request_records_per_station=5),
-        offers=[offer(offer_id="gift-1")],
-        advertisements=[advertisement()],
-    )
-    assert decided == []
-
-
-def test_remaining_capacity_caps_the_number_of_actions():
-    gifts = [offer(offer_id=f"gift-{n}", give=(0, 0, 1), receive=(0, 0, 0)) for n in range(4)]
-    decided = decide(
-        request_results=[result(request_id=f"r{n}") for n in range(4)],
-        rules=rules(max_request_records_per_station=5, new_commands_per_station_per_tick=3),
-        offers=gifts,
-    )
-    assert len(decided) == 1  # one slot left, so one command
-
-
 # --- determinism -----------------------------------------------------------
-
-def test_identical_input_gives_identical_output():
-    built = state(
-        observation=hungry_observation(),
-        advertisements=[
-            advertisement(advertisement_id="p03", station_id="P03", selling=(FOOD,), seeking=(WATER,)),
-            advertisement(advertisement_id="p02", station_id="P02", selling=(FOOD,), seeking=(WATER,)),
-        ],
-        offers=[offer(offer_id="gift-1"), offer(offer_id="gift-0")],
-    )
-    first = UtilityPolicy().decide(built)
-    second = UtilityPolicy().decide(built)
-    assert first == second
-    assert [a.describe() for a in first] == [a.describe() for a in second]
-
 
 def test_peers_are_considered_in_station_order():
     peers = [

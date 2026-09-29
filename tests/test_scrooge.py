@@ -17,7 +17,6 @@ from .factories import (
     bundle,
     observation,
     offer,
-    result,
     rules,
     state,
 )
@@ -36,20 +35,6 @@ def sells_food_wants_water(station="P02"):
     return advertisement(
         advertisement_id=f"ad-{station}", station_id=station, selling=(FOOD,), seeking=(WATER,)
     )
-
-
-# --- gates -----------------------------------------------------------------
-
-def test_no_actions_unless_the_run_is_running():
-    for phase in model.Phase:
-        if phase is model.Phase.PHASE_RUNNING:
-            continue
-        assert decide(phase=phase, observation=SHORT_OF_FOOD, advertisements=[sells_food_wants_water()]) == []
-
-
-def test_no_actions_from_a_failed_station():
-    dead = observation(inventory=bundle(30, 3, 30), upkeep_per_tick=bundle(1, 1, 0), health=0)
-    assert decide(observation=dead, advertisements=[sells_food_wants_water()]) == []
 
 
 # --- charity: never -------------------------------------------------------
@@ -266,32 +251,7 @@ def test_capping_the_horizon_can_be_switched_off():
 DEFAULT_HORIZON = ScroogeWeights().horizon
 
 
-# --- limits and determinism ---------------------------------------------------
-
-def test_no_new_commands_once_stored_result_capacity_is_used_up():
-    decided = decide(
-        observation=SHORT_OF_FOOD,
-        advertisements=[sells_food_wants_water()],
-        request_results=[result(request_id=f"r{n}") for n in range(5)],
-        rules=rules(max_request_records_per_station=5),
-    )
-    assert decided == []
-
-
-def test_never_more_actions_than_the_per_tick_command_limit():
-    gifts = [offer(offer_id=f"gift-{n}", give=(0, 0, 1), receive=(0, 0, 0)) for n in range(4)]
-    assert len(decide(offers=gifts, rules=rules(new_commands_per_station_per_tick=2))) == 2
-
-
-def test_never_more_open_offers_than_the_rules_allow():
-    peers = [sells_food_wants_water("P02"), sells_food_wants_water("P03")]
-    decided = decide(
-        observation=SHORT_OF_FOOD,
-        advertisements=peers,
-        rules=rules(max_open_outgoing_offers=1, new_commands_per_station_per_tick=5),
-    )
-    assert len([a for a in decided if isinstance(a, actions.Offer)]) == 1
-
+# --- determinism -------------------------------------------------------------
 
 def test_peers_are_considered_in_station_order():
     peers = [sells_food_wants_water("P03"), sells_food_wants_water("P02")]
@@ -302,12 +262,3 @@ def test_peers_are_considered_in_station_order():
     )
     offers = [a for a in decided if isinstance(a, actions.Offer)]
     assert [o.recipient_id for o in offers] == ["P02"]
-
-
-def test_identical_input_gives_identical_output():
-    built = state(
-        observation=SHORT_OF_FOOD,
-        advertisements=[sells_food_wants_water("P03"), sells_food_wants_water("P02")],
-        offers=[offer(offer_id="gift-1"), offer(offer_id="gift-0")],
-    )
-    assert ScroogePolicy().decide(built) == ScroogePolicy().decide(built)

@@ -14,21 +14,16 @@ start to matter in a real game.
 from ... import actions, config
 from ...validation import model
 from .. import store
+from .base import BUNDLE_ORDER, BasePolicy
 
 
-class UtilityPolicy:
+class UtilityPolicy(BasePolicy):
     """Scores candidate actions against projected need and picks the best."""
 
     name = "utility"
-
-    def __init__(self, weights: config.PolicyWeights = config.DEFAULT_WEIGHTS):
-        self.weights = weights
+    default_weights = config.DEFAULT_WEIGHTS
 
     # --- projection ------------------------------------------------------
-    def _order(self, state: model.State) -> list[model.Resource]:
-        """Resource order from the rules, which also breaks ties."""
-        return list(state.rules.resource_order) or list(model.Resource)
-
     def needs(self, state: model.State) -> dict[model.Resource, int]:
         """How short we are of each resource over the horizon.
 
@@ -102,15 +97,15 @@ class UtilityPolicy:
         return tuple(surplus), tuple(deficit)
 
     # --- valuation -------------------------------------------------------
-    def value(self, prices, received: model.Bundle, paid: model.Bundle) -> float:
-        """What a trade is worth from our side, in our own prices."""
+    def _net_value(self, prices, received: model.Bundle, paid: model.Bundle) -> float:
+        """What a trade is worth from our side, in our own prices.
+
+        Summed per resource rather than as ``value(received) - value(paid)``,
+        which can differ in the last float digit and so reorder ties.
+        """
         return sum(
             prices[resource] * (received.get(resource) - paid.get(resource)) for resource in prices
         )
-
-    def _affordable(self, state, paid: model.Bundle) -> bool:
-        inventory = state.observation.inventory
-        return all(inventory.get(r) >= paid.get(r) for r in self._order(state))
 
     def _creates_deficit(self, needs, received: model.Bundle, paid: model.Bundle) -> bool:
         """Would this trade push a resource we are fine on into shortage?
@@ -144,18 +139,13 @@ class UtilityPolicy:
             return asked[action.offer_id]
         return model.Bundle()
 
-    def _expiry(self, state, ttl_ticks: int, ceiling_rule: str) -> int:
-        """An expiry that is in the future and inside the run's ceiling."""
-        ceiling = getattr(state.rules, ceiling_rule)
-        return state.tick + max(1, min(ttl_ticks, ceiling))
-
     # --- candidates ------------------------------------------------------
     def _accepts(self, state, needs, prices) -> list:
         """Incoming offers worth taking.  Gifts always are."""
         chosen = []
         for offer in sorted(store.incoming_open_offers(state), key=lambda o: o.offer_id):
             received, paid = offer.give, offer.receive
-            worth = self.value(prices, received, paid)
+            worth = self._net_value(prices, received, paid)
             if paid.is_zero():
                 chosen.append(
                     actions.Accept(
@@ -217,15 +207,15 @@ class UtilityPolicy:
                 continue
             want, pay = wanted[0], payable[0]
             receive = model.Bundle.of(
-                tuple(weights.offer_receive_qty if r == want else 0 for r in _BUNDLE_ORDER)
+                tuple(weights.offer_receive_qty if r == want else 0 for r in BUNDLE_ORDER)
             )
             give = model.Bundle.of(
                 tuple(
                     weights.offer_ratio * weights.offer_receive_qty if r == pay else 0
-                    for r in _BUNDLE_ORDER
+                    for r in BUNDLE_ORDER
                 )
             )
-            worth = self.value(prices, receive, give)
+            worth = self._net_value(prices, receive, give)
             if worth <= 0:
                 continue
             if not self._affordable(state, give) or self._creates_deficit(needs, receive, give):
@@ -254,7 +244,7 @@ class UtilityPolicy:
         """
         chosen = []
         for offer in sorted(store.my_open_offers(state), key=lambda o: o.offer_id):
-            worth = self.value(prices, offer.receive, offer.give)
+            worth = self._net_value(prices, offer.receive, offer.give)
             headroom = self.headroom(state, max(0, offer.expires_tick - state.tick))
             if worth < 0:
                 reason = f"our offer is now worth {worth:.1f} to us"
@@ -280,30 +270,23 @@ class UtilityPolicy:
         return chosen
 
     # --- the decision ----------------------------------------------------
-    def decide(self, state: model.State) -> list:
-        """Pure function of the state: same state in, same actions out."""
-        if state.phase is not model.Phase.PHASE_RUNNING:
-            return []
-        if state.observation.health <= 0:
-            return []  # a failed station is permanent; do not trade from it
-
+    def candidates(self, state: model.State) -> list:
         needs = self.needs(state)
         prices = self.prices(needs)
         surplus, deficit = self._surplus_and_deficit(state, needs)
-
-        # Generated in resource order, then station order, so that the stable
-        # sort below leaves equal scores in exactly that order.
-        candidates = [
+        return [
             *self._accepts(state, needs, prices),
             *self._advertise(state, surplus, deficit),
             *self._offers(state, needs, prices, surplus, deficit),
             *self._withdrawals(state, prices, surplus, deficit),
         ]
-        ranked = sorted(candidates, key=lambda action: -action.score)
-        return self._within_limits(state, ranked)
 
     def _within_limits(self, state, ranked: list) -> list:
         """Obey the run's command limits and our reserve, best-scoring first.
+
+        Replaces the shared version rather than extending it, because the
+        reserve has to be checked in the same pass as the budget: an action
+        the reserve refuses must not use up a command slot.
 
         Every command we send stores a result, and the run caps how many it
         stores, so capacity is the hard ceiling: once it is gone we send
@@ -340,11 +323,3 @@ class UtilityPolicy:
                 spendable[resource] -= paid.get(resource)
             chosen.append(action)
         return chosen
-
-
-#: Bundle field order, which is also the order tuples are written in.
-_BUNDLE_ORDER = (
-    model.Resource.RESOURCE_WATER,
-    model.Resource.RESOURCE_FOOD,
-    model.Resource.RESOURCE_COMPONENTS,
-)

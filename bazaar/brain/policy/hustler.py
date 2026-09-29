@@ -28,42 +28,19 @@ not on what it might want ten ticks from now.  Tunables are in
 ``bazaar/config.py``.
 """
 
-import math
-
 from ... import actions, config
 from ...validation import model
 from .. import store
-
-_BUNDLE_ORDER = (
-    model.Resource.RESOURCE_WATER,
-    model.Resource.RESOURCE_FOOD,
-    model.Resource.RESOURCE_COMPONENTS,
-)
+from .base import BUNDLE_ORDER, BasePolicy
 
 
-class HustlerPolicy:
+class HustlerPolicy(BasePolicy):
     """Always listed, always offering, and hard to say no to."""
 
     name = "hustler"
-
-    def __init__(self, weights: config.HustlerWeights = config.DEFAULT_HUSTLER):
-        self.weights = weights
+    default_weights = config.DEFAULT_HUSTLER
 
     # --- projection ------------------------------------------------------
-    def _order(self, state):
-        return list(state.rules.resource_order) or list(model.Resource)
-
-    def cover(self, state) -> dict:
-        """Ticks of cover per resource; a resource with no upkeep lasts forever."""
-        observation = state.observation
-        ticks = {}
-        for resource in self._order(state):
-            upkeep = observation.upkeep_per_tick.get(resource)
-            ticks[resource] = (
-                math.inf if upkeep <= 0 else observation.inventory.get(resource) / upkeep
-            )
-        return ticks
-
     def needs(self, state) -> dict:
         observation = state.observation
         weights = self.weights
@@ -96,13 +73,6 @@ class HustlerPolicy:
         return priced
 
     # --- valuation -------------------------------------------------------
-    def value(self, prices, bundle: model.Bundle) -> float:
-        return sum(prices[resource] * bundle.get(resource) for resource in prices)
-
-    def _affordable(self, state, paid: model.Bundle) -> bool:
-        inventory = state.observation.inventory
-        return all(inventory.get(r) >= paid.get(r) for r in self._order(state))
-
     def _breaches_floor(self, state, cover, received, paid) -> bool:
         """The one rule: never fall through the floor on anything.
 
@@ -119,10 +89,6 @@ class HustlerPolicy:
             if after < self.weights.floor_ticks and after < cover[resource]:
                 return True
         return False
-
-    def _expiry(self, state, ttl_ticks, ceiling_rule) -> int:
-        ceiling = getattr(state.rules, ceiling_rule)
-        return state.tick + max(1, min(ttl_ticks, ceiling))
 
     def _spare(self, state, cover) -> tuple:
         """Everything we could pay with without going through the floor."""
@@ -243,9 +209,9 @@ class HustlerPolicy:
         weights = self.weights
         for pay, receive_qty, give_qty in self._terms(state, cover, advertisement, want):
             receive = model.Bundle.of(
-                tuple(receive_qty if r == want else 0 for r in _BUNDLE_ORDER)
+                tuple(receive_qty if r == want else 0 for r in BUNDLE_ORDER)
             )
-            give = model.Bundle.of(tuple(give_qty if r == pay else 0 for r in _BUNDLE_ORDER))
+            give = model.Bundle.of(tuple(give_qty if r == pay else 0 for r in BUNDLE_ORDER))
             if give.is_zero() or not self._affordable(state, give):
                 continue
             if self._breaches_floor(state, cover, receive, give):
@@ -334,41 +300,14 @@ class HustlerPolicy:
         return chosen
 
     # --- the decision ----------------------------------------------------
-    def decide(self, state) -> list:
-        """Pure function of the state: same state in, same actions out."""
-        if state.phase is not model.Phase.PHASE_RUNNING:
-            return []
-        if state.observation.health <= 0:
-            return []
-
+    def candidates(self, state) -> list:
         cover = self.cover(state)
         needs = self.needs(state)
         prices = self.prices(state, needs, cover)
         wanted = self._wanted(state, cover, needs)
-
-        candidates = [
+        return [
             *self._accepts(state, cover, prices),
             *self._offers(state, cover, prices, wanted),
             *self._advertise(state, cover, wanted),
             *self._withdrawals(state, prices),
         ]
-        ranked = sorted(candidates, key=lambda action: -action.score)
-        return self._within_limits(state, ranked)
-
-    def _within_limits(self, state, ranked) -> list:
-        """Use the whole budget, every tick, up to what the rules allow."""
-        budget = min(
-            state.rules.new_commands_per_station_per_tick,
-            store.remaining_result_capacity(state),
-        )
-        offer_slots = store.remaining_offer_slots(state)
-        chosen = []
-        for action in ranked:
-            if len(chosen) >= budget:
-                break
-            if isinstance(action, actions.Offer):
-                if offer_slots <= 0:
-                    continue
-                offer_slots -= 1
-            chosen.append(action)
-        return chosen

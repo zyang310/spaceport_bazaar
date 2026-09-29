@@ -23,33 +23,19 @@ Everything is a pure function of the state handed in, so a captured state
 replays identically.  Tunables live in ``bazaar/config.py``.
 """
 
-import math
-
 from ... import actions, config
 from ...validation import model
 from .. import store
-
-#: Bundle field order, which is also the order tuples are written in.
-_BUNDLE_ORDER = (
-    model.Resource.RESOURCE_WATER,
-    model.Resource.RESOURCE_FOOD,
-    model.Resource.RESOURCE_COMPONENTS,
-)
+from .base import BUNDLE_ORDER, BasePolicy
 
 
-class ScroogePolicy:
+class ScroogePolicy(BasePolicy):
     """Defends its reserves, pays in its specialty, and gives nothing away."""
 
     name = "scrooge"
-
-    def __init__(self, weights: config.ScroogeWeights = config.DEFAULT_SCROOGE):
-        self.weights = weights
+    default_weights = config.DEFAULT_SCROOGE
 
     # --- projection ------------------------------------------------------
-    def _order(self, state: model.State) -> list[model.Resource]:
-        """Resource order from the rules, which also breaks ties."""
-        return list(state.rules.resource_order) or list(model.Resource)
-
     def horizon(self, state: model.State) -> int:
         """How far ahead to look, never past the end of the run.
 
@@ -61,22 +47,6 @@ class ScroogePolicy:
             return horizon
         remaining = state.rules.duration_ticks - state.tick
         return max(1, min(horizon, remaining))
-
-    def cover(self, state: model.State) -> dict[model.Resource, float]:
-        """Ticks of cover per resource: stock divided by upkeep.
-
-        A resource with no upkeep is never consumed, so it lasts forever and
-        can never be in danger.
-        """
-        observation = state.observation
-        ticks = {}
-        for resource in self._order(state):
-            upkeep = observation.upkeep_per_tick.get(resource)
-            if upkeep <= 0:
-                ticks[resource] = math.inf
-            else:
-                ticks[resource] = observation.inventory.get(resource) / upkeep
-        return ticks
 
     def critical(self, state, cover) -> tuple[model.Resource, ...]:
         """Resources whose cover has fallen below the danger line."""
@@ -121,14 +91,6 @@ class ScroogePolicy:
         return priced
 
     # --- valuation -------------------------------------------------------
-    def value(self, prices, bundle: model.Bundle) -> float:
-        """What a bundle is worth to us, in our own prices."""
-        return sum(prices[resource] * bundle.get(resource) for resource in prices)
-
-    def _affordable(self, state, paid: model.Bundle) -> bool:
-        inventory = state.observation.inventory
-        return all(inventory.get(r) >= paid.get(r) for r in self._order(state))
-
     def _breaches_reserve(self, state, cover, received, paid) -> bool:
         """Would this trade push something below the danger line?
 
@@ -150,10 +112,6 @@ class ScroogePolicy:
         """Is our side of this trade priced purely in the thing we produce?"""
         specialty = state.observation.specialty
         return all(paid.get(r) == 0 for r in self._order(state) if r != specialty)
-
-    def _expiry(self, state, ttl_ticks: int, ceiling_rule: str) -> int:
-        ceiling = getattr(state.rules, ceiling_rule)
-        return state.tick + max(1, min(ttl_ticks, ceiling))
 
     # --- candidates ------------------------------------------------------
     def _accepts(self, state, cover, prices, in_danger: bool) -> list:
@@ -251,12 +209,12 @@ class ScroogePolicy:
                 continue  # they do not want anything we are willing to part with
             want = wanted[0]
             receive = model.Bundle.of(
-                tuple(weights.offer_receive_qty if r == want else 0 for r in _BUNDLE_ORDER)
+                tuple(weights.offer_receive_qty if r == want else 0 for r in BUNDLE_ORDER)
             )
             give = model.Bundle.of(
                 tuple(
                     weights.offer_ratio * weights.offer_receive_qty if r == payment else 0
-                    for r in _BUNDLE_ORDER
+                    for r in BUNDLE_ORDER
                 )
             )
             if give.is_zero():
@@ -349,52 +307,20 @@ class ScroogePolicy:
         return chosen
 
     # --- the decision ----------------------------------------------------
-    def decide(self, state: model.State) -> list:
-        """Pure function of the state: same state in, same actions out."""
-        if state.phase is not model.Phase.PHASE_RUNNING:
-            return []
-        if state.observation.health <= 0:
-            return []  # a failed station is permanent; do not trade from it
-
+    def candidates(self, state: model.State) -> list:
         cover = self.cover(state)
         critical = self.critical(state, cover)
         in_danger = bool(critical)
         needs = self.needs(state)
         prices = self.prices(state, needs, cover)
 
-        # Generated in resource order, then station order, so that the stable
-        # sort below leaves equal scores in exactly that order.
         candidates = [*self._accepts(state, cover, prices, in_danger)]
         if in_danger:
             # Only a shortage justifies going out and asking for something.
             candidates += self._advertise(state, cover, critical)
             candidates += self._offers(state, cover, prices, critical)
         candidates += self._withdrawals(state, prices, critical)
-
-        ranked = sorted(_without_charity(candidates), key=lambda action: -action.score)
-        return self._within_limits(state, ranked)
-
-    def _within_limits(self, state, ranked: list) -> list:
-        """Obey the run's command limits, best-scoring first.
-
-        Every command stores a result and the run caps how many it keeps, so
-        capacity is the hard ceiling: once it is gone nothing is sent.
-        """
-        budget = min(
-            state.rules.new_commands_per_station_per_tick,
-            store.remaining_result_capacity(state),
-        )
-        offer_slots = store.remaining_offer_slots(state)
-        chosen = []
-        for action in ranked:
-            if len(chosen) >= budget:
-                break
-            if isinstance(action, actions.Offer):
-                if offer_slots <= 0:
-                    continue
-                offer_slots -= 1
-            chosen.append(action)
-        return chosen
+        return _without_charity(candidates)
 
 
 def _without_charity(candidates: list) -> list:

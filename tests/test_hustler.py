@@ -3,7 +3,6 @@
 from bazaar import actions
 from bazaar.brain.policy.hustler import HustlerPolicy
 from bazaar.config import HustlerWeights
-from bazaar.validation import model
 
 from .factories import (
     COMPONENTS,
@@ -13,7 +12,6 @@ from .factories import (
     bundle,
     observation,
     offer,
-    result,
     rules,
     state,
 )
@@ -32,18 +30,6 @@ def peer(station="P02", selling=(FOOD, COMPONENTS), seeking=(WATER, FOOD)):
     return advertisement(
         advertisement_id=f"ad-{station}", station_id=station, selling=selling, seeking=seeking
     )
-
-
-# --- gates -----------------------------------------------------------------
-
-def test_no_actions_unless_the_run_is_running():
-    for phase in model.Phase:
-        if phase is not model.Phase.PHASE_RUNNING:
-            assert decide(phase=phase, advertisements=[peer()]) == []
-
-
-def test_no_actions_from_a_failed_station():
-    assert decide(observation=observation(health=0), advertisements=[peer()]) == []
 
 
 # --- always visible ---------------------------------------------------------
@@ -297,7 +283,7 @@ def test_it_keeps_buying_what_drains_before_the_short_horizon_notices():
     assert [(o.give, o.receive) for o in offers_in(decided)] == [((0, 0, 6), (0, 2, 0))]
 
 
-# --- limits and determinism ----------------------------------------------------
+# --- budget and ranking --------------------------------------------------------
 
 def test_it_spends_the_whole_command_budget():
     decided = decide(
@@ -307,37 +293,9 @@ def test_it_spends_the_whole_command_budget():
     assert len(decided) == 3
 
 
-def test_no_new_commands_once_stored_result_capacity_is_used_up():
-    assert (
-        decide(
-            advertisements=[peer()],
-            request_results=[result(request_id=f"r{n}") for n in range(5)],
-            rules=rules(max_request_records_per_station=5),
-        )
-        == []
-    )
-
-
-def test_never_more_open_offers_than_the_rules_allow():
-    decided = decide(
-        advertisements=[peer("P02"), peer("P03")],
-        rules=rules(max_open_outgoing_offers=1, new_commands_per_station_per_tick=6),
-    )
-    assert len([a for a in decided if isinstance(a, actions.Offer)]) == 1
-
-
 def test_offers_outrank_listings():
     decided = decide(advertisements=[peer()], rules=rules(new_commands_per_station_per_tick=1))
     assert isinstance(decided[0], actions.Offer)
-
-
-def test_identical_input_gives_identical_output():
-    built = state(
-        advertisements=[peer("P03"), peer("P02")],
-        offers=[offer(offer_id="gift-1"), offer(offer_id="gift-0")],
-        rules=BUSY,
-    )
-    assert HustlerPolicy().decide(built) == HustlerPolicy().decide(built)
 
 
 def test_it_trades_far_more_than_scrooge_on_the_same_state():

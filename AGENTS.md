@@ -24,7 +24,7 @@ Where this repo's docs and the starter README disagree, **the README wins.**
 ## 2. Commands
 
 ```bash
-# Tests — 211 of them, all must pass. Fast (<1s).
+# Tests — 229 of them, all must pass. Fast (<1s).
 python -m pytest tests/ -q
 
 # One file
@@ -106,25 +106,39 @@ A policy is a pure function from a state to a list of actions. Recipe:
 
 1. Add a `<Name>Weights` frozen dataclass to `bazaar/config.py` with a
    `DEFAULT_<NAME>` instance. **Every tunable lives there, not in the policy.**
-2. Create `bazaar/brain/policy/<name>.py` with a class exposing:
-   - `name: str` (the CLI flag value)
-   - `__init__(self, weights=config.DEFAULT_<NAME>)`
-   - `decide(self, state: model.State) -> list[Action]`
+2. Create `bazaar/brain/policy/<name>.py` with a subclass of
+   `BasePolicy` (`bazaar/brain/policy/base.py`) that sets:
+   - `name = "<name>"` (the CLI flag value)
+   - `default_weights = config.DEFAULT_<NAME>`
+   - `candidates(self, state) -> list[Action]`: everything it would like to
+     do, unranked and unlimited.
+   **Do not override `decide`.** The base class owns it: gate, then
+   `candidates`, then a stable sort by `-score`, then `_within_limits`.
+   Override `_within_limits` only for a rule that must see the chosen actions
+   together, as `utility`'s reserve does. Shared helpers (`_order`, `cover`,
+   `value`, `_affordable`, `_expiry`, `BUNDLE_ORDER`) live there too; use them
+   rather than writing your own.
 3. Register it in `bazaar/brain/policy/__init__.py`'s `AGENTS` dict. The CLI
-   picks it up automatically for both `--policy` and `--shadow`.
-4. Add `tests/test_<name>.py`. Build states with `tests/factories.py`.
+   picks it up automatically for both `--policy` and `--shadow`, and
+   `tests/test_policy_contract.py` starts holding it to the contract below.
+4. Add `tests/test_<name>.py` for what makes the agent *good*. Build states
+   with `tests/factories.py`. The contract is already tested; do not copy it.
 
 ### Contract every policy must honour
 
+`BasePolicy` enforces the first four; `tests/test_policy_contract.py` checks all
+of them against every registered agent.
+
 - **Pure.** Same state in, same actions out. No clocks, no randomness, no I/O.
-  A captured fixture must replay identically. Test this explicitly.
+  A captured fixture must replay identically.
 - **Gated.** Return `[]` unless `state.phase is PHASE_RUNNING` and
   `state.observation.health > 0`.
 - **Deterministic ordering.** Generate candidates in `rules.resource_order`,
-  then station-ID order, then sort by `-score`. Python's sort is stable, so
-  generation order breaks ties — do not rely on anything else.
+  then station-ID order. The base class sorts by `-score`; Python's sort is
+  stable, so generation order breaks ties — do not rely on anything else.
 - **Within limits.** Never exceed `new_commands_per_station_per_tick`,
   `max_open_outgoing_offers`, or `store.remaining_result_capacity(state)`.
+- **Legal.** Every action must pass `limits.validate_command`.
 - **Never assigns request IDs.** `runner.py` owns those.
 
 Existing policies, as reference points:
@@ -200,7 +214,7 @@ Match the surrounding code. Concretely:
 ## 9. Before you finish
 
 ```bash
-python -m pytest tests/ -q                                    # 211 passing
+python -m pytest tests/ -q                                    # 229 passing
 grep -rn "bazaar_pb2" bazaar/ --include="*.py" | grep -v "^bazaar/generated/"
 git status --short                                            # no .env, no webb_docs/
 ```
