@@ -33,6 +33,16 @@ RUNS_DIR = ROOT / "runs"
 TOKEN_ENV = "BAZAAR_TOKEN"
 ENV_FILE = ROOT / ".env"
 
+#: How long the runner waits for a command's result before retrying it once,
+#: and how long it then waits for its own view to catch up once a command
+#: settles.  Both are in ticks, not seconds: a fixed number of seconds is
+#: generous at the live game's slowest cadence but, at its fastest, can burn
+#: several ticks of wall time waiting out one slow reply.  Counting ticks
+#: instead keeps the cost the same fraction of the game whatever the speed.
+#: ``runner.py`` converts to seconds using the run's own ``tick_duration_ms``.
+COMMAND_TIMEOUT_TICKS: float = 2.0
+VIEW_CATCHUP_TIMEOUT_TICKS: float = 1.0
+
 
 def env_token() -> str | None:
     """The token from the environment, or from a gitignored ``.env``.

@@ -166,6 +166,13 @@ async def run_utility(
     decides afresh.  Nothing worth doing is lost: the agent is pure, so
     anything still worth doing is simply chosen again.
 
+    Waiting for one command's result, and then for our own view to catch up
+    with it, are both timed in ticks (``config.COMMAND_TIMEOUT_TICKS`` and
+    ``config.VIEW_CATCHUP_TIMEOUT_TICKS``) rather than a fixed number of
+    seconds, and converted at the point of use via ``_ticks_to_seconds``. A
+    fixed-second timeout is harmless at the live game's slowest cadence but,
+    at its fastest, blocks the loop for many ticks over one slow reply.
+
     ``max_seconds`` is ``None`` by default, meaning no limit: a real game may
     sit in ``PHASE_READY`` for a while before an instructor starts it, and the
     agent should stay connected and waiting rather than give up. Stop an
@@ -272,7 +279,10 @@ async def run_utility(
             print(f"    {action.describe()}  <- {action.reason}")
             activity.sent(action, request_id)
             try:
-                result = await _send_with_one_retry(client, message, raw, request_id)
+                result = await _send_with_one_retry(
+                    client, message, raw, request_id,
+                    timeout=_ticks_to_seconds(state, config.COMMAND_TIMEOUT_TICKS),
+                )
             except ProtocolErrorReceived as exc:
                 activity.errored(request_id, exc.error.code.name)
                 outcome.protocol_errors.append(exc.error)
@@ -302,12 +312,26 @@ async def run_utility(
             print(f"    -> {result.code.name} (ok={result.ok})")
             # Act on a view that already includes what we just did.
             try:
-                await client.wait_for_version(result.processed_version, timeout=5)
+                await client.wait_for_version(
+                    result.processed_version,
+                    timeout=_ticks_to_seconds(state, config.VIEW_CATCHUP_TIMEOUT_TICKS),
+                )
             except asyncio.TimeoutError:
                 pass
 
     outcome.commands_sent = client.sent
     return outcome
+
+
+def _ticks_to_seconds(state: model.State, ticks: float) -> float:
+    """A timeout expressed in ticks, converted to the seconds ``asyncio`` wants.
+
+    ``state.rules.tick_duration_ms`` is the run's own cadence, so a timeout set
+    this way costs the same number of ticks whether the game runs at 1 second
+    or 10 seconds a tick.  Floored well above zero so a degenerate tick length
+    cannot produce a timeout that fires before the request is even sent.
+    """
+    return max(0.05, state.rules.tick_duration_ms / 1000 * ticks)
 
 
 async def _send_with_one_retry(client, message, raw, request_id: str, timeout: float = 10):

@@ -17,7 +17,7 @@ from bazaar.runlog import RunLog
 from bazaar.runner import RunOutcome, run_utility
 from bazaar.validation import limits, model
 
-from .factories import result, state
+from .factories import result, rules, state
 
 
 class FakeClient:
@@ -192,3 +192,58 @@ def test_a_batch_is_dropped_once_its_tick_has_passed_and_the_agent_decides_again
     logged = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
     dropped = [r for r in logged if "dropped" in r]
     assert [(r["stale_after_tick"], r["now_tick"], len(r["dropped"])) for r in dropped] == [(5, 6, 2)]
+
+
+class TimeoutRecordingClient(RecordingClient):
+    """Records the timeout it is given on each call, rather than acting on it.
+
+    ``request`` and ``wait_for_version`` both answer immediately regardless,
+    so the recorded values show only what the runner asked for -- not whether
+    a real wait would have fired.
+    """
+
+    def __init__(self, fixed_state):
+        super().__init__(fixed_state)
+        self.request_timeouts = []
+        self.catchup_timeouts = []
+
+    async def request(self, message, request_id, timeout=10):
+        self.request_timeouts.append(timeout)
+        return await super().request(message, request_id, timeout)
+
+    async def wait_for_version(self, world_version, timeout=10):
+        self.catchup_timeouts.append(timeout)
+        return self.state
+
+
+class AdvertiseOncePolicy:
+    def decide(self, decided_state):
+        return [
+            actions.Advertise(
+                selling=(model.Resource.RESOURCE_WATER,), expires_tick=decided_state.tick + 3
+            )
+        ]
+
+
+@pytest.mark.parametrize(
+    "tick_duration_ms, expected_command_timeout, expected_catchup_timeout",
+    [
+        (1000, 2.0, 1.0),  # the sandbox default
+        (150, 0.3, 0.15),  # a fast game: seconds shrink, ticks of grace do not
+        (5000, 10.0, 5.0),  # the live game's slowest cadence
+    ],
+)
+def test_command_and_catchup_timeouts_scale_with_the_runs_tick_length(
+    tmp_path, tick_duration_ms, expected_command_timeout, expected_catchup_timeout
+):
+    """Regression: both timeouts were fixed at 10s and 5s regardless of tick
+    length, so a fast game could burn many ticks waiting out one slow reply."""
+    built = state(rules=rules(tick_duration_ms=tick_duration_ms))
+    client = TimeoutRecordingClient(built)
+    asyncio.run(
+        run_utility(
+            client, AdvertiseOncePolicy(), RunLog(tmp_path), RunOutcome(), 0.1, session="s1"
+        )
+    )
+    assert client.request_timeouts == [pytest.approx(expected_command_timeout)]
+    assert client.catchup_timeouts == [pytest.approx(expected_catchup_timeout)]
