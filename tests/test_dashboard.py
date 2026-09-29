@@ -88,6 +88,55 @@ def test_only_the_specialty_is_flagged_as_the_specialty():
     assert [r["resource"] for r in view["reserves"] if r["is_specialty"]] == ["food"]
 
 
+def test_net_per_tick_is_production_minus_upkeep():
+    me = observation(last_production=bundle(12, 0, 0), upkeep_per_tick=bundle(6, 5, 0))
+    view = render(state(observation=me))
+    assert [r["net_per_tick"] for r in view["reserves"]] == [6, -5, 0]
+
+
+# --- the verdict line ---------------------------------------------------------------
+
+def test_the_verdict_is_calm_when_every_reserve_is_comfortable():
+    verdict = render(state())["verdict"]
+    assert verdict["tone"] == "good"
+    assert "water" in verdict["body"]  # ties go to the first in resource order
+
+
+def test_the_verdict_names_the_lowest_reserve_and_mentions_the_others():
+    me = observation(inventory=bundle(30, 4, 3), upkeep_per_tick=bundle(1, 1, 1))
+    verdict = render(state(observation=me))["verdict"]
+    assert verdict["tone"] == "warning"
+    assert verdict["title"] == "Components is running low"
+    assert "food (4.0)" in verdict["body"]
+
+
+def test_a_critical_reserve_makes_a_critical_verdict():
+    me = observation(inventory=bundle(30, 1, 30), upkeep_per_tick=bundle(1, 1, 1))
+    verdict = render(state(observation=me))["verdict"]
+    assert (verdict["tone"], verdict["title"]) == ("critical", "Food is nearly out")
+
+
+def test_unmet_upkeep_outranks_a_merely_low_reserve_and_points_at_help():
+    me = observation(inventory=bundle(30, 0, 3), upkeep_per_tick=bundle(1, 1, 1), last_unmet_upkeep=bundle(0, 1, 0))
+    help_ = offer(proposer_id="P02", recipient_id="P01", give=(0, 3, 0), receive=(1, 0, 0), expires_tick=5)
+    verdict = render(state(observation=me, offers=[help_]))["verdict"]
+    assert verdict["title"] == "Losing health: food has run out"
+    assert "P02 has an offer that would send food" in verdict["body"]
+
+
+def test_outside_a_running_phase_the_verdict_just_names_the_phase():
+    verdict = render(state(phase=model.Phase.PHASE_FINISHED))["verdict"]
+    assert verdict == {"tone": "neutral", "title": "Run finished", "body": ""}
+
+
+def test_once_there_is_an_outcome_the_verdict_reports_it():
+    me = observation(health=0, failed_once=True, first_failure_tick=104)
+    outcome = model.PlayerOutcome(collective_success=False, self_failed=True, aborted=False)
+    verdict = render(state(phase=model.Phase.PHASE_FINISHED, observation=me, outcome=outcome))["verdict"]
+    assert verdict["title"] == "Run over: our station failed"
+    assert verdict["body"] == "Health reached 0 at tick 104. The stations failed collectively."
+
+
 # --- offers and trades ------------------------------------------------------------------
 
 def test_expired_incoming_offers_are_left_out_of_the_open_offers():
@@ -103,7 +152,17 @@ def test_outgoing_offers_count_against_the_slot_limit():
     view = render(state(offers=mine, rules=rules(max_open_outgoing_offers=3)))
     assert len(view["offers"]["outgoing"]) == 2
     assert view["offers"]["slots_left"] == 1
-    assert view["offers"]["market_open"] == 2
+
+
+def test_offer_history_counts_how_our_offers_ended():
+    offers = [
+        offer("offer-1", status=model.OfferStatus.OFFER_STATUS_ACCEPTED),
+        offer("offer-2", status=model.OfferStatus.OFFER_STATUS_ACCEPTED),
+        offer("offer-3", status=model.OfferStatus.OFFER_STATUS_EXPIRED),
+        offer("offer-4"),
+    ]
+    history = render(state(offers=offers))["offers"]["history"]
+    assert history == {"total": 4, "accepted": 2, "expired": 1, "open": 1}
 
 
 def test_recent_trades_are_only_ours_newest_first_and_capped():
@@ -183,6 +242,14 @@ def test_an_accept_shows_the_terms_of_the_offer_it_accepts():
     assert terms["counterparty"] == "P02"
     assert (terms["we_give"], terms["we_get"]) == ({"water": 1, "food": 0, "components": 0},
                                                    {"water": 0, "food": 3, "components": 0})
+
+
+def test_withdrawing_an_offer_names_the_planet_it_was_made_to():
+    ours = offer("offer-4", proposer_id="P01", recipient_id="P05")
+    dashboard = Dashboard()
+    dashboard.decided(state(offers=[ours]), [actions.Withdraw(object_id="offer-4"),
+                                             actions.Withdraw(object_id="advertisement-2")])
+    assert [r.terms.get("counterparty") for r in dashboard.actions] == ["P05", None]
 
 
 # --- history and timing -----------------------------------------------------------------

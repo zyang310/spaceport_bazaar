@@ -59,7 +59,10 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser.add_argument(
         "--url",
         default=config.DEFAULT_URL,
-        help=f"default {config.DEFAULT_URL}; the bundled practice server is {config.PRACTICE_URL}",
+        help=(
+            f"default {config.DEFAULT_URL}; the bundled practice server is {config.PRACTICE_URL}; "
+            f"the local sandbox (python -m bazaar.sandbox) is {config.SANDBOX_URL}"
+        ),
     )
     parser.add_argument(
         "--no-dashboard",

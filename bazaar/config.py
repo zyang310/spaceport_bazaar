@@ -238,14 +238,73 @@ class DashboardSettings:
 
     #: How much of the past each panel keeps.  The page is a glance, not a log;
     #: the full record is in ``runs/``.
-    recent_trades: int = 15
-    recent_actions: int = 40
+    recent_trades: int = 30
+    recent_actions: int = 150
     history_ticks: int = 60
 
     #: Ticks of cover below which a reserve is shown as critical, then low.
     #: Critical matches the Hustler's floor; low, Scrooge's danger line.
     critical_cover_ticks: float = 2.0
     low_cover_ticks: float = 5.0
+    #: Where each reserve's cover gauge reads full.  Past this, more stock
+    #: changes nothing worth looking at.
+    cover_gauge_ticks: float = 20.0
 
 
 DASHBOARD = DashboardSettings()
+
+
+#: The local sandbox game (``python -m bazaar.sandbox``).  Port 3002, beside the
+#: practice server's 3001.
+SANDBOX_URL = "ws://127.0.0.1:3002/ws"
+
+
+@dataclass(frozen=True)
+class SandboxSettings:
+    """A local game that plays like the live one, for testing without it.
+
+    The rules default to what the live game actually sent (see ``runs/``): nine
+    stations starting on (30,30,30), six units of the specialty made per tick,
+    one of everything eaten per tick, five health lost per unit short.  Only the
+    tick is faster by default, so a whole run fits in two minutes.
+    """
+
+    host: str = "127.0.0.1"
+    port: int = 3002
+    #: Station a client plays unless its token names another (``sandbox-P03``).
+    station: str = STATION_ID
+    stations: int = 9
+    seed: int = 7
+
+    duration_ticks: int = 120
+    tick_duration_ms: int = 1000
+    #: Seconds in PHASE_READY after the first client declares ready, standing
+    #: in for the instructor pressing start.
+    start_after_seconds: float = 3.0
+
+    start_inventory: int = 30
+    production_per_tick: int = 6
+    upkeep_per_tick: int = 1
+    max_health: int = 100
+    shortage_damage_per_unit: int = 5
+    recovery_per_fully_supplied_tick: int = 5
+    max_publication_ttl_ticks: int = 12
+    max_offer_ttl_ticks: int = 12
+    new_commands_per_station_per_tick: int = 10
+    max_request_records_per_station: int = 2048
+    max_open_outgoing_offers: int = 24
+    max_command_bytes: int = 16384
+
+    #: The bots on every station no client has claimed.  A bot is short of a
+    #: resource below ``bot_short_below``, and weighs trades accordingly.
+    bot_short_below: int = 20
+    #: Chance per tick that a bot answers a given offer, or proposes one.  Below
+    #: one, so offers sometimes sit, expire, or go to someone else first.
+    bot_accept_chance: float = 0.6
+    bot_offer_chance: float = 0.7
+    #: How much value a bot will give up on a trade it accepts.
+    bot_tolerance: float = 0.5
+    bot_gift_chance: float = 0.03
+
+
+SANDBOX = SandboxSettings()

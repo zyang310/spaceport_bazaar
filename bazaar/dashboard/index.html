@@ -4,59 +4,39 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bazaar dashboard</title>
+<!-- Fonts are a nicety: offline, the fallbacks in each stack take over. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    color-scheme: light;
-    --page: #f9f9f7;
-    --surface: #fcfcfb;
-    --ink: #0b0b0b;
-    --ink-2: #52514e;
-    --muted: #898781;
-    --grid: #e1e0d9;
-    --axis: #c3c2b7;
-    --border: rgba(11, 11, 11, 0.10);
-    --wash: rgba(11, 11, 11, 0.035);
+    color-scheme: dark;
+    --page: #101112;
+    --bar: #141517;
+    --surface: #17181a;
+    --raised: #1d1f21;
+    --ink: #ecebe6;
+    --ink-2: #c9c7c0;
+    --ink-3: #a9a79f;
+    --muted: #8a887f;
+    --line: rgba(255, 255, 255, 0.07);
+    --line-soft: rgba(255, 255, 255, 0.05);
+    --track: rgba(255, 255, 255, 0.07);
+    --wash: rgba(255, 255, 255, 0.025);
 
     /* One colour per resource, everywhere on the page. */
-    --water: #2a78d6;
-    --food: #1baf7a;
-    --components: #eb6834;
+    --water: #4d9cf0;
+    --food: #3cc28f;
+    --components: #f08a4b;
 
-    /* Status: only where the colour means good or bad, always with an icon and a label. */
-    --good: #0ca30c;
-    --warning: #fab219;
-    --serious: #ec835a;
-    --critical: #d03b3b;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      color-scheme: dark;
-      --page: #0d0d0d;
-      --surface: #1a1a19;
-      --ink: #ffffff;
-      --ink-2: #c3c2b7;
-      --grid: #2c2c2a;
-      --axis: #383835;
-      --border: rgba(255, 255, 255, 0.10);
-      --wash: rgba(255, 255, 255, 0.04);
-      --water: #3987e5;
-      --food: #199e70;
-      --components: #d95926;
-    }
-  }
-  :root[data-theme="dark"] {
-    color-scheme: dark;
-    --page: #0d0d0d;
-    --surface: #1a1a19;
-    --ink: #ffffff;
-    --ink-2: #c3c2b7;
-    --grid: #2c2c2a;
-    --axis: #383835;
-    --border: rgba(255, 255, 255, 0.10);
-    --wash: rgba(255, 255, 255, 0.04);
-    --water: #3987e5;
-    --food: #199e70;
-    --components: #d95926;
+    /* Status: only where the colour means good or bad, always with a symbol and a word. */
+    --good: #4cc35a;
+    --warning: #f2b84b;
+    --critical: #f06a5f;
+    --neutral: #a9a79f;
+
+    --display: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
 
   * { box-sizing: border-box; }
@@ -64,159 +44,224 @@
     margin: 0;
     background: var(--page);
     color: var(--ink);
-    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    font: 14px/1.45 var(--body);
   }
-  main { max-width: 1400px; margin: 0 auto; padding: 16px; }
+  main { max-width: 1440px; margin: 0 auto; padding: 28px 40px 40px; display: flex; flex-direction: column; gap: 24px; }
   main.dimmed { opacity: 0.55; transition: opacity 0.3s; }
-
-  /* --- header ---------------------------------------------------------- */
-  header {
-    position: sticky; top: 0; z-index: 5;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-  }
-  .bar {
-    max-width: 1400px; margin: 0 auto; padding: 10px 16px;
-    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px;
-  }
-  .station { font-size: 18px; font-weight: 600; }
-  .sub { color: var(--ink-2); font-size: 12px; }
-  .field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .field .label { color: var(--ink-2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
-  .progress { display: flex; align-items: center; gap: 10px; flex: 1 1 260px; min-width: 200px; }
-  .progress .meter { flex: 1; }
-  .spacer { flex: 1 0 0; }
-
-  .meter { height: 8px; border-radius: 4px; background: var(--grid); overflow: hidden; }
-  .meter > span { display: block; height: 100%; border-radius: 4px; background: var(--ink-2); }
-
-  .pill {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 2px 10px; border-radius: 999px;
-    border: 1px solid var(--border); background: var(--wash);
-    font-size: 12px; font-weight: 600; white-space: nowrap;
-  }
-  .icon { font-weight: 700; }
-  .good .icon { color: var(--good); }
-  .warning .icon { color: var(--warning); }
-  .serious .icon { color: var(--serious); }
-  .critical .icon { color: var(--critical); }
-  .neutral .icon, .muted .icon { color: var(--ink-2); }
+  h2, h3 { margin: 0; font-family: var(--display); font-weight: 600; }
+  h2 { font-size: 18px; }
+  h3 { font-size: 15px; }
+  .display { font-family: var(--display); }
+  .mono { font-family: var(--mono); }
+  .num { font-variant-numeric: tabular-nums; }
+  .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
   .muted { color: var(--muted); }
+  .dim { color: var(--ink-3); }
+  .empty { color: var(--muted); padding: 6px 0; font-size: 13px; }
 
-  .banner {
-    margin: 0 0 16px; padding: 10px 14px; border-radius: 8px;
-    border: 1px solid var(--border); background: var(--surface); font-weight: 600;
+  /* Tones: a class sets --tone, and badges, bars and text read it. */
+  .good { --tone: var(--good); }
+  .warning { --tone: var(--warning); }
+  .critical { --tone: var(--critical); }
+  .neutral, .muted-tone { --tone: var(--neutral); }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+    font-size: 12px; font-weight: 600;
+    color: var(--tone); background: color-mix(in srgb, var(--tone) 14%, transparent);
+  }
+  .toned { color: var(--tone); }
+
+  /* --- header ---------------------------------------------------------------- */
+  header { position: sticky; top: 0; z-index: 5; background: var(--bar); border-bottom: 1px solid var(--line); }
+  .bar {
+    max-width: 1440px; margin: 0 auto; min-height: 76px; padding: 10px 40px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 40px;
+  }
+  .who { display: flex; flex-direction: column; gap: 2px; }
+  .who-line { display: flex; align-items: center; gap: 12px; }
+  .station { font-family: var(--display); font-size: 22px; font-weight: 600; line-height: 1.1; }
+  .specialty { color: var(--ink-2); background: var(--track); }
+  .progress { flex: 1 1 320px; min-width: 240px; display: flex; flex-direction: column; gap: 8px; }
+  .progress-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; color: var(--ink-3); }
+  .progress-line b { color: var(--ink); font-family: var(--display); font-size: 16px; }
+  .world { display: flex; flex-direction: column; gap: 2px; align-items: flex-end; }
+  .live { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--tone); white-space: nowrap; }
+  .live .pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--tone); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tone) 20%, transparent); }
+
+  .track { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
+  .track > span { display: block; height: 100%; border-radius: inherit; background: var(--ink); }
+
+  /* --- verdict and outcome ----------------------------------------------------------- */
+  .verdict {
+    display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: 14px;
+    background: color-mix(in srgb, var(--tone) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent);
+  }
+  .verdict .mark {
+    width: 36px; height: 36px; flex: none; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--tone); color: var(--page); font-weight: 700; font-size: 18px;
+  }
+  .verdict .words { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .verdict .title { font-family: var(--display); font-size: 18px; font-weight: 600; }
+  .verdict .body { color: var(--ink-2); }
+
+  /* --- cards ---------------------------------------------------------------------------- */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; min-width: 0; }
+  .card.pad { padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+  .card.alarm { border-color: color-mix(in srgb, var(--critical) 45%, transparent); }
+  .card-head { display: flex; align-items: center; gap: 8px; }
+  .card-head .badge { margin-left: auto; }
+  .card-title { font-family: var(--display); font-size: 16px; font-weight: 600; text-transform: capitalize; }
+  .big { display: flex; align-items: baseline; gap: 6px; }
+  .big .value { font-family: var(--display); font-size: 52px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+  .facts { display: grid; gap: 8px; }
+  .facts.two { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 8px; }
+  .facts.four { grid-template-columns: repeat(4, minmax(0, 1fr)); padding-top: 12px; border-top: 1px solid var(--line-soft); }
+  .fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .fact .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .facts.two .fact .v { font-size: 16px; }
+  .fact .note { color: var(--muted); font-size: 12px; }
+  .alert { padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--tone); background: color-mix(in srgb, var(--tone) 12%, transparent); }
+
+  .vitals { display: grid; gap: 24px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .lower { display: grid; gap: 24px; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); align-items: start; }
+  @media (max-width: 1180px) {
+    .vitals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .lower { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 640px) {
+    header { position: static; }
+    main { padding: 16px; }
+    .bar { padding: 10px 16px; gap: 10px 20px; }
+    .vitals { grid-template-columns: minmax(0, 1fr); }
   }
 
-  /* --- layout -------------------------------------------------------- */
-  .grid { display: grid; gap: 16px; }
-  .top { grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(220px, 1.3fr)); }
-  .middle { grid-template-columns: 3fr 2fr; margin-top: 16px; }
-  .bottom { margin-top: 16px; }
-  @media (max-width: 1100px) {
-    .top { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .middle { grid-template-columns: minmax(0, 1fr); }
-  }
-  @media (max-width: 620px) {
-    .top { grid-template-columns: minmax(0, 1fr); }
-  }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
-    min-width: 0;
-    position: relative;
-  }
-  .card h2 {
-    margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--ink-2);
-    display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
-  }
-  .card h2 .count { font-weight: 400; }
-  .card h2 .right { margin-left: auto; font-weight: 400; }
-
-  /* --- reserves -------------------------------------------------------- */
-  .res-head { display: flex; align-items: center; gap: 8px; }
-  .res-name { font-weight: 600; text-transform: capitalize; }
-  .star { color: var(--ink-2); font-size: 12px; }
-  .amount { font-size: 34px; font-weight: 600; line-height: 1.1; margin: 6px 0 2px; }
-  .facts { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-2); font-size: 12px; margin-top: 6px; }
-  .facts b { color: var(--ink); font-weight: 600; }
-  .spark-wrap { position: relative; margin-top: 8px; }
-  .spark { display: block; width: 100%; height: 56px; overflow: visible; }
-  .spark-empty { height: 56px; margin-top: 8px; display: flex; align-items: center; color: var(--muted); font-size: 12px; }
-  .tooltip {
-    position: absolute; pointer-events: none; z-index: 3;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
-    padding: 4px 8px; font-size: 12px; white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  }
-  .tooltip b { font-size: 13px; }
-  .tooltip .key { display: inline-block; width: 10px; height: 2px; vertical-align: middle; margin-right: 6px; }
-
-  .health-num { font-size: 34px; font-weight: 600; line-height: 1.1; margin: 6px 0 8px; }
-  .health-num small { font-size: 14px; color: var(--ink-2); font-weight: 400; }
-
-  /* --- resource keys and bundles ------------------------------------------ */
+  /* --- health and reserves -------------------------------------------------------------- */
+  .meter { height: 10px; border-radius: 5px; background: var(--track); overflow: hidden; }
+  .meter > span { display: block; height: 100%; border-radius: inherit; background: var(--tone); }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .dot.lg { width: 10px; height: 10px; }
   .dot.water { background: var(--water); }
   .dot.food { background: var(--food); }
   .dot.components { background: var(--components); }
-  .bundle { display: inline-flex; flex-wrap: wrap; gap: 2px 10px; }
-  .chip { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-  .chip b { font-variant-numeric: tabular-nums; }
 
-  /* --- tables ------------------------------------------------------------- */
-  .scroll { overflow-x: auto; }
+  .gauge { display: flex; flex-direction: column; gap: 6px; }
+  .gauge-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .gauge-bar { position: relative; height: 10px; border-radius: 5px; background: var(--track); overflow: hidden; }
+  .gauge-bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--tone); }
+  .gauge-bar .notch { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--surface); }
+  .gauge-scale { position: relative; height: 14px; font-size: 11px; color: var(--muted); }
+  .gauge-scale span { position: absolute; transform: translateX(-50%); }
+  .gauge-scale span:first-child { transform: none; }
+  .gauge-scale span:last-child { transform: none; right: 0; }
+
+  .spark-wrap { position: relative; }
+  .spark { display: block; width: 100%; height: 56px; overflow: visible; }
+  .spark-empty { height: 56px; display: flex; align-items: center; color: var(--muted); font-size: 12px; }
+  .tooltip {
+    position: absolute; pointer-events: none; z-index: 3;
+    background: var(--raised); border: 1px solid var(--line); border-radius: 6px;
+    padding: 4px 8px; font-size: 12px; white-space: nowrap; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  }
+
+  /* --- resource amounts ---------------------------------------------------------------- */
+  .bundle { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .chip b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .chip .name { color: var(--ink-2); }
+  .chip.boxed { padding: 2px 9px; border-radius: 8px; background: var(--line-soft); font-size: 13px; }
+  .arrow { flex: none; color: var(--muted); }
+
+  /* --- agent activity ------------------------------------------------------------------- */
+  .panel-head { padding: 20px 22px 16px; display: flex; flex-direction: column; gap: 14px; border-bottom: 1px solid var(--line); }
+  .panel-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .panel-top .sub { color: var(--ink-3); font-size: 13px; }
+  .slots-used { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+  .slots-used .track { width: 140px; height: 4px; }
+  .slots-used .track > span { background: var(--ink-3); }
+  .tally { display: flex; flex-wrap: wrap; gap: 8px; }
+  /* A busy agent decides dozens of things a minute; keep the page's shape. */
+  .feed { max-height: 760px; overflow-y: auto; }
+  .tick-head {
+    position: sticky; top: 0; z-index: 1;
+    padding: 10px 22px; display: flex; gap: 10px; align-items: baseline;
+    background: color-mix(in srgb, var(--surface) 92%, white); border-bottom: 1px solid var(--line-soft);
+  }
+  .tick-head .right { margin-left: auto; color: var(--muted); font-size: 12px; }
+  .act { padding: 14px 22px; display: flex; gap: 16px; align-items: flex-start; border-bottom: 1px solid var(--line-soft); }
+  .act .state { width: 96px; flex: none; }
+  .act .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .act .line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+  .kind {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.14); color: var(--ink-2);
+  }
+  .act .who { font-weight: 600; }
+  .act .why { color: var(--ink-3); font-size: 13px; }
+  .act .detail { font-size: 12px; font-weight: 500; color: var(--tone); overflow-wrap: anywhere; }
+  .act .score { width: 56px; flex: none; display: flex; flex-direction: column; align-items: flex-end; }
+  .act .score .v { font-family: var(--display); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .rid { color: var(--muted); font-family: var(--mono); font-size: 11px; overflow-wrap: anywhere; }
+  .word { color: var(--muted); font-size: 13px; }
+
+  /* --- market ---------------------------------------------------------------------------- */
+  .market { display: flex; flex-direction: column; }
+  .market section { padding: 18px 22px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--line); }
+  .market section:first-child { padding-top: 20px; }
+  .market section:last-child { border-bottom: 0; padding-bottom: 20px; }
+  .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .section-head > h2, .section-head > h3, .section-head > span { white-space: nowrap; }
+  .section-head .dim { font-size: 13px; }
+  .offer-card {
+    padding: 14px 16px; border-radius: 12px; background: var(--raised); border: 1px solid var(--line-soft);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .offer-card .top { display: flex; align-items: baseline; gap: 8px; }
+  .offer-card .top .left { margin-left: auto; font-size: 12px; font-weight: 600; }
+  .offer-card .sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .offer-card .sides .chip { font-size: 15px; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line-soft); font-size: 13px; }
+  .row .end { margin-left: auto; font-size: 12px; white-space: nowrap; }
+  .row .tick { width: 44px; flex: none; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  .row .with { width: 64px; flex: none; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .slotbar { display: flex; gap: 2px; flex: none; }
+  .slotbar span { flex: 1; min-width: 2px; height: 8px; border-radius: 2px; background: var(--track); }
+  .slotbar span.on { background: var(--ink); }
+  .stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px; background: var(--track); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--ink-3); }
+  .legend b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+
+  /* --- history table --------------------------------------------------------------------- */
+  details.card { padding: 16px 22px; }
+  details summary { cursor: pointer; font-family: var(--display); font-weight: 600; }
+  details[open] summary { margin-bottom: 10px; }
+  .scroll { overflow-x: auto; max-height: 420px; overflow-y: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th {
-    text-align: left; font-weight: 600; color: var(--ink-2); font-size: 11px;
-    text-transform: uppercase; letter-spacing: 0.04em;
-    padding: 6px 8px; border-bottom: 1px solid var(--axis);
-  }
-  td { padding: 6px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
-  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  tr.group td {
-    background: var(--wash); color: var(--ink-2); font-size: 11px; font-weight: 600;
-    padding: 4px 8px; letter-spacing: 0.02em;
-  }
-  .empty { color: var(--muted); padding: 10px 8px; font-size: 13px; }
-  .status { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-weight: 600; }
-  .detail { display: block; font-size: 11px; color: var(--ink-2); font-weight: 400; word-break: break-word; }
-  .terms { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; }
-  .terms .verb { font-weight: 600; }
-  .reason { color: var(--ink-2); font-size: 12px; }
-  .rid { color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace; }
-  .totals { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-  .offers-block + .offers-block { margin-top: 14px; }
-  h3 { margin: 0 0 6px; font-size: 12px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; }
-  h3 .count { font-weight: 400; color: var(--ink-2); }
+  th { text-align: right; font-weight: 500; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+       padding: 6px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); }
+  td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--line-soft); font-variant-numeric: tabular-nums; }
 
-  details summary { cursor: pointer; color: var(--ink-2); font-size: 13px; font-weight: 600; }
-  details[open] summary { margin-bottom: 8px; }
-
-  .waiting { text-align: center; padding: 80px 16px; color: var(--ink-2); }
-  .waiting b { display: block; color: var(--ink); font-size: 18px; margin-bottom: 6px; }
-  footer { max-width: 1400px; margin: 0 auto; padding: 0 16px 24px; color: var(--muted); font-size: 12px; }
+  .waiting { text-align: center; padding: 80px 16px; color: var(--ink-3); }
+  .waiting b { display: block; color: var(--ink); font-family: var(--display); font-size: 20px; margin-bottom: 6px; }
+  footer { max-width: 1440px; margin: 0 auto; padding: 0 40px 24px; color: var(--muted); font-size: 12px; }
 </style>
 </head>
 <body>
 <header><div class="bar" id="bar"></div></header>
 <main id="main">
   <div class="waiting" id="waiting"><b>Waiting for the first state</b>The client is connecting, or the game has not sent a snapshot yet.</div>
-  <div id="content" hidden>
-    <div id="banner"></div>
-    <section class="grid top" id="top"></section>
-    <section class="grid middle">
-      <div class="card" id="actions"></div>
-      <div class="card" id="offers"></div>
+  <div id="content" hidden style="display: contents">
+    <section id="verdict"></section>
+    <section class="vitals" id="vitals"></section>
+    <section class="lower">
+      <article class="card" id="actions"></article>
+      <article class="card market" id="market"></article>
     </section>
-    <section class="grid bottom">
-      <div class="card" id="trades"></div>
-      <div class="card"><details id="history"></details></div>
-    </section>
+    <details class="card" id="history"></details>
   </div>
 </main>
 <footer id="footer"></footer>
@@ -224,7 +269,7 @@
 <script>
 "use strict";
 
-// --- state ----------------------------------------------------------------
+// --- state ----------------------------------------------------------------------
 let data = null;
 let socketOpen = false;
 let lastMessageAt = 0;
@@ -233,23 +278,27 @@ let historyOpen = false;
 const RESOURCES = ["water", "food", "components"];
 
 const STATUS = {
-  queued:   { icon: "○", label: "queued",   tone: "neutral" },
-  sent:     { icon: "◐", label: "sent",     tone: "neutral" },
-  ok:       { icon: "✓", label: "ok",       tone: "good" },
-  failed:   { icon: "✕", label: "failed",   tone: "critical" },
-  rejected: { icon: "!", label: "rejected", tone: "serious" },
-  error:    { icon: "!", label: "error",    tone: "critical" },
-  skipped:  { icon: "–", label: "skipped",  tone: "muted" },
+  queued:   { icon: "○", label: "Queued",   tone: "neutral" },
+  sent:     { icon: "◐", label: "Sent",     tone: "neutral" },
+  ok:       { icon: "✓", label: "Done",     tone: "good" },
+  failed:   { icon: "✕", label: "Failed",   tone: "critical" },
+  rejected: { icon: "!", label: "Rejected", tone: "warning" },
+  error:    { icon: "!", label: "Error",    tone: "critical" },
+  skipped:  { icon: "–", label: "Skipped",  tone: "neutral" },
 };
+const TALLY_WORD = { ok: "done", sent: "sent", failed: "failed", rejected: "rejected", error: "errors", skipped: "skipped" };
 const LEVEL = {
-  ok:       { icon: "✓", label: "ok",       tone: "good" },
-  low:      { icon: "▲", label: "low",      tone: "warning" },
-  critical: { icon: "!", label: "critical", tone: "critical" },
+  ok:       { icon: "✓", label: "OK",       tone: "good" },
+  low:      { icon: "▲", label: "Low",      tone: "warning" },
+  critical: { icon: "!", label: "Critical", tone: "critical" },
 };
+const VERDICT_ICON = { good: "✓", warning: "▲", critical: "!", neutral: "■" };
 const PHASE_TONE = { READY: "neutral", RUNNING: "good", PAUSED: "warning", FINISHED: "neutral", ABORTED: "critical" };
-const PHASE_ICON = { READY: "○", RUNNING: "●", PAUSED: "‖", FINISHED: "■", ABORTED: "✕" };
+const ENDED = [
+  ["accepted", "var(--good)"], ["expired", "#6d6b65"], ["withdrawn", "#48473f"], ["run_ended", "#34332f"],
+];
 
-// --- DOM helpers: every piece of data goes in as text, never as markup ---------
+// --- DOM helpers: every piece of data goes in as text, never as markup ---------------
 function h(tag, attrs, ...children) {
   const el = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs || {})) {
@@ -266,15 +315,14 @@ function h(tag, attrs, ...children) {
 }
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Number(n).toLocaleString();
+const plural = (n, word) => `${fmt(n)} ${word}${n === 1 ? "" : "s"}`;
 
-function pill(tone, icon, label, title) {
-  return h("span", { class: `pill ${tone}`, title }, h("span", { class: "icon" }, icon), label);
+function badge(tone, icon, label, title) {
+  return h("span", { class: `badge ${tone}`, title }, icon, " ", label);
 }
-function statusChip(status, detail) {
-  const s = STATUS[status] || { icon: "?", label: status, tone: "neutral" };
-  return h("span", {},
-    h("span", { class: `status ${s.tone}` }, h("span", { class: "icon" }, s.icon), s.label),
-    detail ? h("span", { class: "detail" }, detail) : null);
+function fact(label, value, note, cls) {
+  return h("div", { class: "fact" }, h("span", { class: "label" }, label), h("span", { class: `v ${cls || ""}` }, value),
+    note ? h("span", { class: "note" }, note) : null);
 }
 function station(id) {
   const name = data && data.header.names[id];
@@ -283,71 +331,80 @@ function station(id) {
 function order() {
   return data ? data.reserves.map((r) => r.resource) : RESOURCES;
 }
-// A bundle as coloured keys with text beside them; "nothing" when it is all zero.
-function bundle(b) {
+// A bundle as coloured keys with the amount beside them; "nothing" when it is all zero.
+// ``sign`` prefixes each amount, so a ledger reads "−6 water +3 food".
+function bundle(b, opts = {}) {
   const parts = order().filter((r) => b[r]).map((r) =>
-    h("span", { class: "chip" }, h("span", { class: `dot ${r}` }), h("b", {}, fmt(b[r])), r));
+    h("span", { class: `chip${opts.boxed ? " boxed" : ""}` },
+      h("span", { class: `dot ${r}` }), h("b", {}, `${opts.sign || ""}${fmt(b[r])}`), h("span", { class: "name" }, r)));
   return parts.length ? h("span", { class: "bundle" }, parts) : h("span", { class: "muted" }, "nothing");
 }
 function resourceList(list) {
   if (!list.length) return h("span", { class: "muted" }, "nothing");
   return h("span", { class: "bundle" }, list.map((r) => h("span", { class: "chip" }, h("span", { class: `dot ${r}` }), r)));
 }
+function arrow() {
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  for (const [k, v] of Object.entries({ width: 16, height: 16, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor",
+    "stroke-width": 1.6, "stroke-linecap": "round", "stroke-linejoin": "round", class: "arrow", "aria-hidden": "true" })) svg.setAttribute(k, v);
+  const path = document.createElementNS(NS, "path");
+  path.setAttribute("d", "M3 8h10M9 4l4 4-4 4");
+  svg.append(path);
+  return svg;
+}
 function ticksLeft(n) {
-  if (n <= 0) return h("span", { class: "status critical" }, h("span", { class: "icon" }, "!"), "this tick");
-  if (n === 1) return h("span", { class: "status warning" }, h("span", { class: "icon" }, "▲"), "1 tick");
-  return `${n} ticks`;
+  if (n <= 0) return h("span", { class: "critical toned" }, "! expires this tick");
+  if (n === 1) return h("span", { class: "warning toned" }, "▲ 1 tick left");
+  return h("span", { class: "dim" }, `${n} ticks left`);
 }
 
-// --- header ------------------------------------------------------------------
+// --- header ------------------------------------------------------------------------------
 function renderBar() {
   const bar = $("bar");
-  if (!data) {
-    bar.replaceChildren(h("div", { class: "station" }, "Bazaar"), h("div", { class: "spacer" }), h("span", { id: "conn" }));
+  if (!data || !data.header) {
+    bar.replaceChildren(h("div", { class: "station" }, "Bazaar"), h("div", { style: "flex:1" }), h("span", { id: "conn" }));
     updateLive();
     return;
   }
   const hd = data.header;
   const pct = hd.duration_ticks ? Math.min(100, (100 * hd.tick) / hd.duration_ticks) : 0;
+  const phase = hd.phase.charAt(0) + hd.phase.slice(1).toLowerCase();
   bar.replaceChildren(
-    h("div", { class: "field" },
-      h("div", { class: "station" }, hd.station),
-      h("div", { class: "sub" }, h("span", { class: "chip" }, h("span", { class: `dot ${hd.specialty}` }), `★ ${hd.specialty} specialty`))),
-    h("div", { class: "field" },
-      h("span", { class: "label" }, "Run"),
-      h("span", {}, hd.run_id)),
-    h("div", { class: "field" },
-      h("span", { class: "label" }, "Phase"),
-      pill(PHASE_TONE[hd.phase] || "neutral", PHASE_ICON[hd.phase] || "·", hd.phase.toLowerCase())),
+    h("div", { class: "who" },
+      h("span", { class: "label" }, "Bazaar · our station"),
+      h("div", { class: "who-line" },
+        h("span", { class: "station" }, station(hd.station)),
+        h("span", { class: "badge specialty", title: "our specialty: we produce it" },
+          h("span", { class: `dot ${hd.specialty}` }), `We make ${hd.specialty}`))),
+    badge(PHASE_TONE[hd.phase] || "neutral", "●", phase),
     h("div", { class: "progress" },
-      h("div", { class: "field" },
-        h("span", { class: "label" }, "Tick"),
-        h("span", {}, h("b", {}, fmt(hd.tick)), ` / ${fmt(hd.duration_ticks)}`)),
-      h("div", { class: "meter", role: "progressbar", "aria-valuenow": hd.tick, "aria-valuemax": hd.duration_ticks, "aria-label": "Run progress" },
-        h("span", { style: `width:${pct}%` })),
-      h("div", { class: "field" },
-        h("span", { class: "label" }, "Next tick"),
-        h("span", { id: "countdown" }, "—"))),
-    h("div", { class: "field" },
+      h("div", { class: "progress-line" },
+        h("span", {}, "Tick ", h("b", { class: "num" }, fmt(hd.tick)), ` of ${fmt(hd.duration_ticks)} `,
+          h("span", { class: "muted" }, `· ${Math.round(pct)}% through the run`)),
+        h("span", { style: "font-size:13px" }, "next tick ", h("b", { id: "countdown", class: "num", style: "font-size:13px;font-family:inherit" }, "—"))),
+      h("div", { class: "track", role: "progressbar", "aria-valuenow": hd.tick, "aria-valuemax": hd.duration_ticks, "aria-label": "Run progress" },
+        h("span", { style: `width:${pct}%` }))),
+    h("div", { class: "world" },
       h("span", { class: "label" }, "World"),
-      h("span", { title: `snapshot ${hd.snapshot_sequence}` }, `v${fmt(hd.world_version)}`)),
+      h("span", { class: "mono num dim", style: "font-size:13px", title: `snapshot ${hd.snapshot_sequence}` }, `v${fmt(hd.world_version)}`)),
     h("span", { id: "conn" }),
   );
   updateLive();
 }
 
-// Runs four times a second: the countdown and the connection pill move between states.
+// Runs four times a second: the countdown and the connection indicator move between states.
 function updateLive() {
   const conn = $("conn");
   if (conn) {
-    let el;
     const tickMs = data && data.header ? data.header.tick_duration_ms : 5000;
     const running = data && data.header && data.header.phase === "RUNNING";
-    if (!socketOpen) el = pill("critical", "✕", "disconnected · retrying");
-    else if (!data) el = pill("neutral", "○", "connected");
-    else if (running && Date.now() - lastMessageAt > 2 * tickMs) el = pill("warning", "▲", "stale", "no state for over two ticks");
-    else el = pill("good", "●", "live");
-    conn.replaceChildren(el);
+    let tone, label, title;
+    if (!socketOpen) [tone, label] = ["critical", "Disconnected · retrying"];
+    else if (!data || !data.header) [tone, label] = ["neutral", "Connected"];
+    else if (running && Date.now() - lastMessageAt > 2 * tickMs) [tone, label, title] = ["warning", "Stale", "no state for over two ticks"];
+    else [tone, label] = ["good", "Live"];
+    conn.replaceChildren(h("span", { class: `live ${tone}`, title }, h("span", { class: "pulse" }), label));
   }
   const cd = $("countdown");
   if (cd && data && data.header) {
@@ -355,53 +412,89 @@ function updateLive() {
     if (hd.phase !== "RUNNING" || hd.tick_seen_at_ms == null) cd.textContent = "—";
     else {
       const left = hd.tick_seen_at_ms + hd.tick_duration_ms - Date.now();
-      cd.textContent = left > 0 ? `~${Math.ceil(left / 1000)}s` : "due";
+      cd.textContent = left > 0 ? `in ~${Math.ceil(left / 1000)}s` : "due";
     }
   }
 }
 
-// --- health and reserves ------------------------------------------------------
+// --- verdict and outcome ---------------------------------------------------------------------
+function renderVerdict() {
+  const v = data.verdict;
+  $("verdict").replaceChildren(h("div", { class: `verdict ${v.tone}`, role: "status" },
+    h("span", { class: "mark", "aria-hidden": "true" }, VERDICT_ICON[v.tone] || "·"),
+    h("div", { class: "words" },
+      h("span", { class: "title" }, v.title),
+      v.body ? h("span", { class: "body" }, v.body) : null),
+    h("span", { class: "label", style: "flex:none" }, `As of tick ${fmt(data.header.tick)}`)));
+
+}
+
+// --- health and reserves ---------------------------------------------------------------------
 function healthCard() {
   const hl = data.health;
   const pct = hl.max_health ? (100 * hl.health) / hl.max_health : 0;
   const tone = pct >= 60 ? "good" : pct >= 30 ? "warning" : "critical";
   const icon = { good: "✓", warning: "▲", critical: "!" }[tone];
-  const colour = `var(--${tone})`;
-  return h("div", { class: "card" },
-    h("h2", {}, "Health"),
-    h("div", { class: "health-num" }, fmt(hl.health), h("small", {}, ` / ${fmt(hl.max_health)}`)),
-    h("div", { class: "meter", role: "meter", "aria-valuenow": hl.health, "aria-valuemax": hl.max_health, "aria-label": "Health",
-               style: `background: color-mix(in srgb, ${colour} 18%, var(--surface))` },
-      h("span", { style: `width:${pct}%; background:${colour}` })),
-    h("div", { class: "facts" },
-      h("span", { class: `status ${tone}` }, h("span", { class: "icon" }, icon), { good: "healthy", warning: "hurting", critical: "in danger" }[tone]),
-      h("span", {}, "shortage streak ", h("b", {}, fmt(hl.current_shortage_streak)), ` (longest ${fmt(hl.longest_shortage_streak)})`),
-      h("span", {}, "supplied ", h("b", {}, fmt(hl.fully_supplied_ticks)), " · short ", h("b", {}, fmt(hl.shortage_ticks)), " ticks"),
-      hl.failed_once ? h("span", { class: "status critical" }, h("span", { class: "icon" }, "✕"), `failed at tick ${hl.first_failure_tick}`) : null));
+  const word = { good: "Healthy", warning: "Hurting", critical: "In danger" }[tone];
+  return h("article", { class: "card pad" },
+    h("div", { class: "card-head" }, h("span", { class: "card-title" }, "Health"), badge(tone, icon, word)),
+    h("div", { class: "big" }, h("span", { class: "value" }, fmt(hl.health)), h("span", { class: "muted", style: "font-size:16px" }, `/ ${fmt(hl.max_health)}`)),
+    h("div", { class: `meter ${tone}`, role: "meter", "aria-valuenow": hl.health, "aria-valuemax": hl.max_health, "aria-label": "Health" },
+      h("span", { style: `width:${pct}%` })),
+    h("div", { class: "facts two" },
+      fact("Short streak", plural(hl.current_shortage_streak, "tick"), `longest ${fmt(hl.longest_shortage_streak)}`,
+        hl.current_shortage_streak ? "critical toned" : ""),
+      fact("Ever failed", hl.failed_once ? `At tick ${hl.first_failure_tick}` : "Never", "health 0 = out",
+        hl.failed_once ? "critical toned" : ""),
+      fact("Fully supplied", plural(hl.fully_supplied_ticks, "tick")),
+      fact("Went short", plural(hl.shortage_ticks, "tick"))));
 }
 
 function reserveCard(r) {
   const level = LEVEL[r.level];
-  const cover = r.cover_ticks == null ? "not consumed" : `${r.cover_ticks} ticks of cover`;
-  return h("div", { class: "card" },
-    h("div", { class: "res-head" },
-      h("span", { class: `dot ${r.resource}` }),
-      h("span", { class: "res-name" }, r.resource),
-      r.is_specialty ? h("span", { class: "star", title: "our specialty: we produce it" }, "★ specialty") : null,
-      h("span", { class: `status ${level.tone}`, style: "margin-left:auto" }, h("span", { class: "icon" }, level.icon), level.label)),
-    h("div", { class: "amount" }, fmt(r.amount)),
-    h("div", { class: "sub" }, cover),
-    sparkline(r),
-    h("div", { class: "facts" },
-      h("span", {}, "upkeep ", h("b", {}, fmt(r.upkeep)), "/tick"),
-      h("span", {}, "made ", h("b", {}, fmt(r.last_production)), " last tick"),
-      r.last_unmet ? h("span", { class: "status critical" }, h("span", { class: "icon" }, "!"), `${fmt(r.last_unmet)} unmet`) : null,
-      h("span", {}, "in ", h("b", {}, fmt(r.imported_total)), " · out ", h("b", {}, fmt(r.exported_total)))));
+  const scale = data.cover_scale;
+  const at = (ticks) => `${(100 * ticks) / scale.max_ticks}%`;
+  const fill = r.cover_ticks == null ? 100
+    : Math.max(r.cover_ticks > 0 ? 2 : 0, Math.min(1, r.cover_ticks / scale.max_ticks) * 100);
+  const net = r.net_per_tick;
+  const netText = `${net > 0 ? "+" : net < 0 ? "−" : "±"}${fmt(Math.abs(net))} / tick`;
+  return h("article", { class: `card pad${r.level === "critical" ? " alarm" : ""}` },
+    h("div", { class: "card-head" },
+      h("span", { class: `dot lg ${r.resource}` }),
+      h("span", { class: "card-title" }, r.resource),
+      r.is_specialty ? h("span", { class: "muted", style: "font-size:12px", title: "our specialty: we produce it" }, "★ we make it") : null,
+      badge(level.tone, level.icon, level.label)),
+    h("div", { class: "big", style: "justify-content:space-between" },
+      h("span", { class: "big" }, h("span", { class: "value" }, fmt(r.amount)), h("span", { class: "muted" }, "in stock")),
+      h("span", { class: "dim num", style: "font-weight:500", title: "made minus burned last tick, before any trades" }, netText)),
+    h("div", { class: `gauge ${level.tone}` },
+      h("div", { class: "gauge-head" },
+        h("span", { class: "dim", style: "font-size:13px" }, "Lasts"),
+        h("span", { class: "toned num", style: "font-weight:600" }, r.cover_ticks == null ? "not consumed" : `${r.cover_ticks} ticks`)),
+      h("div", { class: "gauge-bar", role: "meter", "aria-label": `${r.resource} cover in ticks`,
+                 "aria-valuenow": r.cover_ticks ?? scale.max_ticks, "aria-valuemax": scale.max_ticks },
+        h("span", { class: "fill", style: `width:${fill}%` }),
+        h("span", { class: "notch", style: `left:${at(scale.critical_ticks)}` }),
+        h("span", { class: "notch", style: `left:${at(scale.low_ticks)}` })),
+      h("div", { class: "gauge-scale", "aria-hidden": "true" },
+        h("span", { style: "left:0" }, "0"),
+        h("span", { style: `left:${at(scale.critical_ticks)}` }, fmt(scale.critical_ticks)),
+        h("span", { style: `left:${at(scale.low_ticks)}` }, fmt(scale.low_ticks)),
+        h("span", {}, `${fmt(scale.max_ticks)}+ ticks`))),
+    h("div", { class: "fact" },
+      h("span", { class: "label" }, r.history.length ? `Last ${plural(r.history.length, "tick")}` : "Trend"),
+      sparkline(r)),
+    h("div", { class: "facts four" },
+      fact("Makes", fmt(r.last_production)),
+      fact("Burns", fmt(r.upkeep)),
+      fact("Bought", fmt(r.imported_total)),
+      fact("Sold", fmt(r.exported_total))),
+    r.last_unmet ? h("div", { class: "alert critical" }, `! ${fmt(r.last_unmet)} short last tick — costing health`) : null);
 }
 
 // A single-series trend: 2px line, a faint wash, a ringed end-dot, and a
-// crosshair that snaps to the nearest tick.  The table under "Reserve
-// history" holds the same numbers for anyone not hovering.
+// crosshair that snaps to the nearest tick.  The "Reserve history" table
+// holds the same numbers for anyone not hovering.
 function sparkline(r) {
   const pts = r.history;
   if (pts.length < 2) return h("div", { class: "spark-empty" }, "trend appears after two ticks");
@@ -422,11 +515,11 @@ function sparkline(r) {
   const svg = s("svg", { class: "spark", viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", role: "img",
                           "aria-label": `${r.resource} over the last ${pts.length} ticks` });
   svg.append(
-    s("line", { x1: pad, x2: W - pad, y1: y(0), y2: y(0), stroke: "var(--axis)", "stroke-width": 1, "vector-effect": "non-scaling-stroke" }),
-    s("path", { d: area, fill: colour, "fill-opacity": 0.1, stroke: "none" }),
+    s("line", { x1: pad, x2: W - pad, y1: y(0), y2: y(0), stroke: "rgba(255,255,255,0.12)", "stroke-width": 1, "vector-effect": "non-scaling-stroke" }),
+    s("path", { d: area, fill: colour, "fill-opacity": 0.12, stroke: "none" }),
     s("path", { d: line, fill: "none", stroke: colour, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round", "vector-effect": "non-scaling-stroke" }),
   );
-  const cross = s("line", { y1: pad, y2: H - pad, stroke: "var(--axis)", "stroke-width": 1, "vector-effect": "non-scaling-stroke", visibility: "hidden" });
+  const cross = s("line", { y1: pad, y2: H - pad, stroke: "rgba(255,255,255,0.25)", "stroke-width": 1, "vector-effect": "non-scaling-stroke", visibility: "hidden" });
   svg.append(cross);
 
   // Dots are drawn in HTML over the SVG so they stay round when the SVG stretches.
@@ -452,10 +545,10 @@ function sparkline(r) {
     hover.style.left = `calc(${(100 * bx) / W}% - 6px)`;
     hover.style.top = `${y(best[1]) - 6}px`;
     hover.style.visibility = "visible";
-    tip.replaceChildren(h("span", { class: "key", style: `background:${colour}` }), h("b", {}, fmt(best[1])), ` ${r.resource} · tick ${best[0]}`);
+    tip.replaceChildren(h("b", {}, fmt(best[1])), ` ${r.resource} · tick ${best[0]}`);
     const left = (bx / W) * box.width;
     tip.style.left = `${Math.min(Math.max(0, left - 60), box.width - 140)}px`;
-    tip.style.top = "-26px";
+    tip.style.top = "-28px";
     tip.style.visibility = "visible";
   });
   svg.addEventListener("pointerleave", () => {
@@ -466,106 +559,144 @@ function sparkline(r) {
   return wrap;
 }
 
-// --- actions -------------------------------------------------------------------
-function actionTerms(a) {
+// --- agent activity -----------------------------------------------------------------------------
+function giveGet(give, get) {
+  return [h("span", { class: "word" }, "give"), bundle(give, { boxed: true }), arrow(),
+          h("span", { class: "word" }, "get"), bundle(get, { boxed: true })];
+}
+
+function actionLine(a) {
   const t = a.terms || {};
+  const kind = (k) => h("span", { class: "kind" }, k);
   switch (t.kind) {
     case "offer":
-      return h("div", { class: "terms" },
-        h("span", { class: "verb" }, `Offer → ${station(t.counterparty)}`),
-        h("span", {}, "give ", bundle(t.we_give)),
-        h("span", {}, "get ", bundle(t.we_get)),
-        h("span", { class: "muted" }, `until t${t.expires_tick}`));
+      return [kind("Offer"), h("span", { class: "who" }, `to ${station(t.counterparty)}`), giveGet(t.we_give, t.we_get),
+              h("span", { class: "muted", style: "font-size:12px" }, `until t${t.expires_tick}`)];
     case "accept":
-      return h("div", { class: "terms" },
-        h("span", { class: "verb" }, t.counterparty ? `Accept ← ${station(t.counterparty)}` : "Accept"),
-        t.we_give ? h("span", {}, "give ", bundle(t.we_give)) : null,
-        t.we_get ? h("span", {}, "get ", bundle(t.we_get)) : null,
-        h("span", { class: "rid" }, t.offer_id));
+      return [kind("Accept"), t.counterparty ? h("span", { class: "who" }, `from ${station(t.counterparty)}`) : null,
+              t.we_give ? giveGet(t.we_give, t.we_get) : h("span", { class: "rid" }, t.offer_id)];
     case "advertise":
-      return h("div", { class: "terms" },
-        h("span", { class: "verb" }, "Advertise"),
-        h("span", {}, "selling ", resourceList(t.selling)),
-        h("span", {}, "seeking ", resourceList(t.seeking)),
-        h("span", { class: "muted" }, `until t${t.expires_tick}`));
+      return [kind("Advertise"), h("span", { class: "word" }, "selling"), resourceList(t.selling),
+              h("span", { class: "word" }, "· seeking"), resourceList(t.seeking),
+              h("span", { class: "muted", style: "font-size:12px" }, `until t${t.expires_tick}`)];
     case "withdraw":
-      return h("div", { class: "terms" }, h("span", { class: "verb" }, "Withdraw"), h("span", { class: "rid" }, t.object_id));
+      return [kind("Withdraw"), t.counterparty ? h("span", { class: "who" }, `offer to ${station(t.counterparty)}`) : null,
+              h("span", { class: "rid" }, t.object_id)];
     default:
-      return h("div", { class: "terms" }, a.description);
+      return [kind(t.kind || "Action"), h("span", {}, a.description)];
   }
+}
+
+function actionDetail(a) {
+  if (a.status === "ok" || !a.detail) return null;
+  // RATE_LIMITED -> rate limited
+  return a.status === "failed" ? a.detail.replace(/_/g, " ").toLowerCase() : a.detail;
 }
 
 function renderActions() {
   const ac = data.actions;
   const totals = ac.totals || {};
   const ld = ac.last_decision;
-  const rows = [];
+  const feed = [];
   let group = null;
   for (const a of ac.recent) {
     if (a.world_version !== group) {
       group = a.world_version;
-      rows.push(h("tr", { class: "group" }, h("td", { colspan: 4 }, `tick ${a.tick} · v${fmt(a.world_version)}`)));
+      const n = ac.recent.filter((x) => x.world_version === group).length;
+      feed.push(h("div", { class: "tick-head" },
+        h("span", { class: "display", style: "font-weight:600" }, `Tick ${fmt(a.tick)}`),
+        h("span", { class: "mono muted", style: "font-size:12px" }, `v${fmt(a.world_version)}`),
+        h("span", { class: "right" }, plural(n, "action"))));
     }
-    rows.push(h("tr", {},
-      h("td", {}, statusChip(a.status, a.status === "ok" ? null : a.detail)),
-      h("td", {}, actionTerms(a), a.request_id ? h("span", { class: "rid" }, a.request_id) : null),
-      h("td", { class: "reason" }, a.reason),
-      h("td", { class: "num" }, a.score.toFixed(2))));
+    const st = STATUS[a.status] || { icon: "?", label: a.status, tone: "neutral" };
+    const detail = actionDetail(a);
+    feed.push(h("div", { class: "act" },
+      h("div", { class: "state" }, badge(st.tone, st.icon, st.label)),
+      h("div", { class: "what" },
+        h("div", { class: "line" }, actionLine(a)),
+        a.reason ? h("span", { class: "why" }, a.reason) : null,
+        detail ? h("span", { class: `detail ${st.tone}` }, detail) : null,
+        a.request_id ? h("span", { class: "rid" }, a.request_id) : null),
+      h("div", { class: "score" }, h("span", { class: "label" }, "Score"), h("span", { class: "v" }, a.score.toFixed(2)))));
   }
   const tally = ["sent", "ok", "failed", "rejected", "error", "skipped"]
     .filter((k) => totals[k])
-    .map((k) => pill(STATUS[k].tone, STATUS[k].icon, `${fmt(totals[k])} ${STATUS[k].label}`));
+    .map((k) => badge(STATUS[k].tone, STATUS[k].icon, `${fmt(totals[k])} ${TALLY_WORD[k]}`));
+  const slotPct = ac.results_cap ? (100 * ac.results_used) / ac.results_cap : 0;
   $("actions").replaceChildren(
-    h("h2", {}, "Pending actions",
-      h("span", { class: "count" }, ld ? `last decision tick ${ld.tick} · ${ld.count} action${ld.count === 1 ? "" : "s"}` : "no decision yet"),
-      h("span", { class: "right", title: "stored command results used / cap" }, `${fmt(ac.results_used)} / ${fmt(ac.results_cap)} result slots`)),
-    tally.length ? h("div", { class: "totals" }, tally) : null,
-    rows.length
-      ? h("div", { class: "scroll" }, h("table", {},
-          h("thead", {}, h("tr", {}, h("th", {}, "Status"), h("th", {}, "Action"), h("th", {}, "Why"), h("th", { class: "num" }, "Score"))),
-          h("tbody", {}, rows)))
-      : h("div", { class: "empty" }, "The agent has not decided anything yet. The scripted exercise drives the connection itself, so it shows no actions here."));
+    h("div", { class: "panel-head" },
+      h("div", { class: "panel-top" },
+        h("div", { class: "fact" },
+          h("h2", {}, "What the agent is doing"),
+          h("span", { class: "sub" }, ld ? `Decided ${plural(ld.count, "action")} at tick ${fmt(ld.tick)}` : "No decision yet")),
+        h("div", { class: "slots-used", title: "stored command results used / cap" },
+          h("span", { class: "label" }, "Result slots used"),
+          h("span", { class: "mono num", style: "font-size:13px;color:var(--ink-2)" }, `${fmt(ac.results_used)} / ${fmt(ac.results_cap)}`),
+          h("div", { class: "track" }, h("span", { style: `width:${slotPct}%` })))),
+      tally.length ? h("div", { class: "tally" }, tally) : null),
+    feed.length
+      ? h("div", { class: "feed" }, feed)
+      : h("div", { class: "empty", style: "padding:18px 22px" },
+          "The agent has not decided anything yet. The scripted exercise drives the connection itself, so it shows no actions here."));
 }
 
-// --- offers and trades ------------------------------------------------------------
-function offerTable(rows, direction) {
-  if (!rows.length) return h("div", { class: "empty" }, direction === "out" ? "No open offers of ours." : "Nothing addressed to us.");
-  return h("div", { class: "scroll" }, h("table", {},
-    h("thead", {}, h("tr", {},
-      h("th", {}, direction === "out" ? "To" : "From"), h("th", {}, "We give"), h("th", {}, "We get"), h("th", { class: "num" }, "Expires in"))),
-    h("tbody", {}, rows.map((o) => h("tr", { title: o.offer_id },
-      h("td", {}, station(o.counterparty)),
-      h("td", {}, bundle(o.we_give)),
-      h("td", {}, bundle(o.we_get)),
-      h("td", { class: "num" }, ticksLeft(o.ticks_left)))))));
-}
-
-function renderOffers() {
+// --- market ---------------------------------------------------------------------------------------
+function renderMarket() {
   const of = data.offers;
-  $("offers").replaceChildren(
-    h("h2", {}, "Open offers", h("span", { class: "right" }, `${fmt(of.market_open)} open across the market`)),
-    h("div", { class: "offers-block" },
-      h("h3", {}, "Outgoing", h("span", { class: "count" }, `${of.outgoing.length} / ${of.max_outgoing} slots`)),
-      offerTable(of.outgoing, "out")),
-    h("div", { class: "offers-block" },
-      h("h3", {}, "Incoming", h("span", { class: "count" }, `${of.incoming.length}, we can accept`)),
-      offerTable(of.incoming, "in")));
-}
-
-function renderTrades() {
   const tr = data.trades;
-  $("trades").replaceChildren(
-    h("h2", {}, "Recent trades", h("span", { class: "count" }, `${fmt(tr.total)} settled this run`)),
-    tr.recent.length
-      ? h("div", { class: "scroll" }, h("table", {},
-          h("thead", {}, h("tr", {}, h("th", { class: "num" }, "Tick"), h("th", {}, "With"), h("th", {}, "We gave"), h("th", {}, "We got"), h("th", {}, "Proposed by"))),
-          h("tbody", {}, tr.recent.map((t) => h("tr", { title: t.transaction_id },
-            h("td", { class: "num" }, t.settled_tick),
-            h("td", {}, station(t.counterparty)),
-            h("td", {}, bundle(t.we_gave)),
-            h("td", {}, bundle(t.we_got)),
-            h("td", { class: "reason" }, t.we_proposed ? "us" : "them"))))))
-      : h("div", { class: "empty" }, "No trades settled yet."));
+  const hi = of.history;
+  const used = of.outgoing.length;
+  const full = used >= of.max_outgoing;
+
+  const incoming = of.incoming.map((o) => h("div", { class: "offer-card", title: o.offer_id },
+    h("div", { class: "top" },
+      h("span", { class: "display", style: "font-weight:600;font-size:15px" }, station(o.counterparty)),
+      h("span", { class: "muted", style: "font-size:12px" }, "proposes"),
+      h("span", { class: "left" }, ticksLeft(o.ticks_left))),
+    h("div", { class: "sides" },
+      h("div", { class: "fact" }, h("span", { class: "label" }, "We get"), bundle(o.we_get)),
+      h("div", { class: "fact" }, h("span", { class: "label" }, "We give"), bundle(o.we_give)))));
+
+  const outgoing = of.outgoing.map((o) => h("div", { class: "row", title: o.offer_id },
+    h("span", { class: "with" }, `→ ${o.counterparty}`),
+    bundle(o.we_give), arrow(), bundle(o.we_get),
+    h("span", { class: "end" }, ticksLeft(o.ticks_left))));
+
+  const endedTotal = ENDED.reduce((n, [k]) => n + (hi[k] || 0), 0);
+  const ended = ENDED.filter(([k]) => hi[k]);
+
+  const trades = tr.recent.map((t) => h("div", { class: "row", title: t.transaction_id },
+    h("span", { class: "tick" }, `t${t.settled_tick}`),
+    h("span", { class: "with" }, t.counterparty),
+    bundle(t.we_gave, { sign: "−" }), bundle(t.we_got, { sign: "+" }),
+    h("span", { class: "end muted" }, t.we_proposed ? "we proposed" : "they proposed")));
+
+  $("market").replaceChildren(
+    h("section", {},
+      h("div", { class: "section-head" }, h("h2", {}, "Waiting on us"),
+        h("span", { class: "dim" }, `${plural(of.incoming.length, "offer")} we can accept`)),
+      incoming.length ? incoming : h("div", { class: "empty" }, "Nothing addressed to us.")),
+    h("section", {},
+      h("div", { class: "section-head" }, h("h3", {}, "Our open offers"),
+        h("span", { style: "display:flex;align-items:center;gap:10px" },
+          h("span", { class: "slotbar", "aria-hidden": "true", style: `width:${Math.min(120, of.max_outgoing * 17)}px` },
+            Array.from({ length: of.max_outgoing }, (_, i) => h("span", { class: i < used ? "on" : "" }))),
+          h("span", { class: `num ${full ? "warning toned" : "dim"}`, style: "font-size:13px" },
+            full ? `all ${fmt(of.max_outgoing)} slots full` : `${fmt(used)} of ${fmt(of.max_outgoing)} slots`))),
+      outgoing.length ? outgoing : h("div", { class: "empty" }, "No open offers of ours.")),
+    h("section", {},
+      h("div", { class: "section-head" }, h("h3", {}, "How our offers ended"),
+        h("span", { class: "dim num", title: "every offer we sent or received this run" }, `${fmt(hi.total)} this run`)),
+      endedTotal
+        ? [h("div", { class: "stack", "aria-hidden": "true" },
+             ended.map(([k, colour]) => h("span", { style: `width:${(100 * hi[k]) / endedTotal}%; background:${colour}` }))),
+           h("div", { class: "legend" }, ended.map(([k, colour]) =>
+             h("span", {}, h("span", { class: "swatch", style: `background:${colour}` }), h("b", {}, fmt(hi[k])), ` ${k.replace("_", " ")}`)))]
+        : h("div", { class: "empty" }, "None have ended yet.")),
+    h("section", {},
+      h("div", { class: "section-head" }, h("h3", {}, "Settled trades"),
+        h("span", { class: "dim num" }, `${fmt(tr.total)} this run`)),
+      trades.length ? trades : h("div", { class: "empty" }, "No trades settled yet.")));
 }
 
 // The sparklines' numbers as a table, newest tick first.
@@ -574,22 +705,23 @@ function renderHistory() {
   const ticks = res.length ? res[0].history.map((p) => p[0]) : [];
   const details = $("history");
   details.replaceChildren(
-    h("summary", {}, `Reserve history (last ${ticks.length} tick${ticks.length === 1 ? "" : "s"})`),
+    h("summary", {}, `Reserve history (last ${plural(ticks.length, "tick")})`),
     h("div", { class: "scroll" }, h("table", {},
-      h("thead", {}, h("tr", {}, h("th", { class: "num" }, "Tick"),
-        res.map((r) => h("th", { class: "num" }, h("span", { class: "chip" }, h("span", { class: `dot ${r.resource}` }), r.resource))))),
+      h("thead", {}, h("tr", {}, h("th", {}, "Tick"),
+        res.map((r) => h("th", {}, h("span", { class: "chip", style: "justify-content:flex-end" }, h("span", { class: `dot ${r.resource}` }), r.resource))))),
       h("tbody", {}, ticks.map((t, i) => i).reverse().map((i) => h("tr", {},
-        h("td", { class: "num" }, ticks[i]),
-        res.map((r) => h("td", { class: "num" }, fmt(r.history[i][1])))))))));
+        h("td", {}, ticks[i]),
+        res.map((r) => h("td", {}, fmt(r.history[i][1])))))))));
   details.open = historyOpen;
 }
 
-// --- page ------------------------------------------------------------------------
+// --- page ----------------------------------------------------------------------------------------
 function render() {
   renderBar();
   const ready = data && data.header;
   $("waiting").hidden = !!ready;
   $("content").hidden = !ready;
+  $("content").style.display = ready ? "contents" : "none";
   const dash = data && data.dashboard;
   $("footer").replaceChildren(dash && dash.errors
     ? `dashboard: ${dash.errors} internal error${dash.errors === 1 ? "" : "s"} (trading unaffected) · last: ${dash.last_error}`
@@ -598,20 +730,10 @@ function render() {
 
   const hd = data.header;
   document.title = `${hd.station} · t${hd.tick}/${hd.duration_ticks} · Bazaar`;
-  const oc = hd.outcome;
-  $("banner").replaceChildren(oc
-    ? h("div", { class: "banner" },
-        oc.aborted ? pill("critical", "✕", "run aborted")
-          : oc.collective_success ? pill("good", "✓", "collective success")
-          : oc.collective_success === false ? pill("critical", "✕", "collective failure")
-          : pill("neutral", "■", "run over"),
-        " ",
-        oc.self_failed ? pill("critical", "✕", "our station failed") : pill("good", "✓", "our station survived"))
-    : "");
-  $("top").replaceChildren(healthCard(), ...data.reserves.map(reserveCard));
+  renderVerdict();
+  $("vitals").replaceChildren(healthCard(), ...data.reserves.map(reserveCard));
   renderActions();
-  renderOffers();
-  renderTrades();
+  renderMarket();
   renderHistory();
 }
 

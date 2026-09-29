@@ -221,3 +221,102 @@ def decode_server_message(msg) -> model.ServerMessage:
 def decode_bytes(raw: bytes) -> model.ServerMessage:
     """Raw binary frame → ``model.ServerMessage``."""
     return decode_server_message(pb.ServerMessage.FromString(raw))
+
+
+# --- the client's side -----------------------------------------------------
+# Only the local sandbox (``bazaar/sandbox/``) reads these.
+
+def _decode_advertise(a) -> model.Advertise:
+    return model.Advertise(
+        type=model.AdvertiseType(a.type),
+        protocol_version=a.protocol_version,
+        run_id=a.run_id,
+        request_id=a.request_id,
+        body=model.AdvertiseBody(
+            selling=_resources(a.body.selling),
+            seeking=_resources(a.body.seeking),
+            expires_tick=a.body.expires_tick,
+        ),
+    )
+
+
+def _decode_offer_command(o) -> model.OfferCommand:
+    return model.OfferCommand(
+        type=model.OfferCommandType(o.type),
+        protocol_version=o.protocol_version,
+        run_id=o.run_id,
+        request_id=o.request_id,
+        body=model.OfferBody(
+            recipient_id=o.body.recipient_id,
+            give=_bundle(o.body.give),
+            receive=_bundle(o.body.receive),
+            expires_tick=o.body.expires_tick,
+        ),
+    )
+
+
+def _decode_accept(a) -> model.Accept:
+    return model.Accept(
+        type=model.AcceptType(a.type),
+        protocol_version=a.protocol_version,
+        run_id=a.run_id,
+        request_id=a.request_id,
+        body=model.AcceptBody(offer_id=a.body.offer_id),
+    )
+
+
+def _decode_withdraw(w) -> model.Withdraw:
+    return model.Withdraw(
+        type=model.WithdrawType(w.type),
+        protocol_version=w.protocol_version,
+        run_id=w.run_id,
+        request_id=w.request_id,
+        body=model.WithdrawBody(object_id=w.body.object_id),
+    )
+
+
+def _decode_sync(s) -> model.Sync:
+    return model.Sync(type=model.SyncType(s.type), protocol_version=s.protocol_version, run_id=s.run_id)
+
+
+def _decode_ready(r) -> model.Ready:
+    return model.Ready(
+        type=model.ReadyType(r.type),
+        protocol_version=r.protocol_version,
+        run_id=r.run_id,
+        ready=r.ready,
+        snapshot_sequence=r.snapshot_sequence,
+    )
+
+
+#: Each ClientMessage arm and the function that decodes it.
+_CLIENT_DECODERS = {
+    "advertise": _decode_advertise,
+    "offer": _decode_offer_command,
+    "accept": _decode_accept,
+    "withdraw": _decode_withdraw,
+    "sync": _decode_sync,
+    "ready": _decode_ready,
+}
+
+
+def decode_client_message(msg) -> model.ClientMessage:
+    """One ``pb.ClientMessage`` → one ``model.ClientMessage``."""
+    arm = msg.WhichOneof("message")
+    if arm is None:
+        raise ValueError("ClientMessage has no arm set")
+    return model.ClientMessage(**{arm: _CLIENT_DECODERS[arm](getattr(msg, arm))})
+
+
+def decode_client_bytes(raw: bytes) -> model.ClientMessage:
+    """Raw binary frame from a client → ``model.ClientMessage``.
+
+    Raises on anything malformed -- a missing required field, an unknown enum
+    value -- which the sandbox answers with ``CONTROL_CODE_BAD_MESSAGE``.
+    Parsing alone does not enforce proto2 ``required`` (an absent enum reads as
+    its first value), so presence is checked explicitly.
+    """
+    parsed = pb.ClientMessage.FromString(raw)
+    if not parsed.IsInitialized():
+        raise ValueError(f"missing required fields: {', '.join(parsed.FindInitializationErrors())}")
+    return decode_client_message(parsed)

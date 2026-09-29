@@ -24,7 +24,7 @@ Where this repo's docs and the starter README disagree, **the README wins.**
 ## 2. Commands
 
 ```bash
-# Tests — 229 of them, all must pass. Fast (<1s).
+# Tests — 260 of them, all must pass. Fast (~2s).
 python -m pytest tests/ -q
 
 # One file
@@ -44,6 +44,11 @@ python -m bazaar --policy hustler --dashboard-port 8800
 # The bundled practice server (start it first, in another terminal)
 cd artifacts/bazaar-protobuf-starter-linux && ./spaceport-validate-linux-arm64 --codec protobuf
 python -m bazaar --policy scripted --url ws://127.0.0.1:3001/ws
+
+# A local game with bot traders on the other stations: live rules, 1s ticks.
+# Start it, then point any client at it. Any token works; sandbox-P03 plays P03.
+python -m bazaar.sandbox
+BAZAAR_TOKEN=sandbox python -m bazaar --policy hustler --url ws://127.0.0.1:3002/ws
 
 # Standalone diagnostics (raw protobuf, practice server only)
 python -m bazaar.network.walkthrough happy|edge|errors
@@ -75,6 +80,7 @@ not otherwise contain the literal string.
 | `bazaar/config.py` | Connection settings and every tunable weight. |
 | `bazaar/runlog.py` | Per-run JSONL logs under `runs/` (gitignored). |
 | `bazaar/dashboard/` | Live page per run. `view.py` is pure; `hub.py` records the action lifecycle; `server.py` serves page + WebSocket on one port. Must never break trading: hooks swallow their own errors. |
+| `bazaar/sandbox/` | Local game server for testing: `world.py` (rules, pure), `bots.py` (seeded traders), `server.py` (socket). Speaks `model` types via `encode.encode_server_bytes` / `decode.decode_client_bytes`. |
 | `bazaar/network/probe.py`, `walkthrough.py` | Standalone diagnostics, outside the layers. |
 | `bazaar/memory/` | Empty stubs. Nothing persists across ticks yet. |
 
@@ -214,7 +220,7 @@ Match the surrounding code. Concretely:
 ## 9. Before you finish
 
 ```bash
-python -m pytest tests/ -q                                    # 229 passing
+python -m pytest tests/ -q                                    # 260 passing
 grep -rn "bazaar_pb2" bazaar/ --include="*.py" | grep -v "^bazaar/generated/"
 git status --short                                            # no .env, no webb_docs/
 ```

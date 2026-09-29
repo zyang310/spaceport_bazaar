@@ -11,6 +11,7 @@ water only when we proposed it.  Every row the page shows goes through that one
 function, so the direction of a deal is decided in exactly one place.
 """
 
+from collections import Counter
 from dataclasses import dataclass, field
 
 from .. import actions as act
@@ -106,7 +107,13 @@ def action_terms(action: act.Action, state: model.State) -> dict:
             "expires_tick": action.expires_tick,
         }
     if isinstance(action, act.Withdraw):
-        return {"kind": "withdraw", "object_id": action.object_id}
+        terms = {"kind": "withdraw", "object_id": action.object_id}
+        # Withdrawing an offer concerns the planet it was made to; a listing, nobody.
+        for offer in state.offers:
+            if offer.offer_id == action.object_id:
+                terms["counterparty"] = our_side(offer, state.self_station_id)[0]
+                break
+        return terms
     return {"kind": type(action).__name__.lower()}
 
 
@@ -125,14 +132,93 @@ def render(
     ``history`` is ``(tick, Bundle)`` pairs, oldest first.  ``actions`` is
     :class:`ActionRecord` objects, oldest first.
     """
+    reserves = [_reserve(state, r, history, settings) for r in state.rules.resource_order]
+    offers = _offers(state)
     return {
         "header": _header(state, tick_seen_at_ms),
+        "verdict": verdict(state, reserves, offers["incoming"], settings),
         "health": _health(state),
-        "reserves": [_reserve(state, r, history, settings) for r in state.rules.resource_order],
-        "offers": _offers(state),
+        "reserves": reserves,
+        "cover_scale": {
+            "critical_ticks": settings.critical_cover_ticks,
+            "low_ticks": settings.low_cover_ticks,
+            "max_ticks": settings.cover_gauge_ticks,
+        },
+        "offers": offers,
         "trades": _trades(state, settings.recent_trades),
         "actions": _actions(state, actions, totals, last_decision, settings.recent_actions),
     }
+
+
+PHASE_HEADLINES = {
+    model.Phase.PHASE_READY: "Waiting for the run to start",
+    model.Phase.PHASE_PAUSED: "Run paused",
+    model.Phase.PHASE_FINISHED: "Run finished",
+    model.Phase.PHASE_ABORTED: "Run aborted",
+}
+
+
+def _ticks(cover: float) -> str:
+    return f"{cover:.1f} tick{'' if cover == 1 else 's'}"
+
+
+def verdict(state: model.State, reserves: list[dict], incoming: list[dict],
+            settings: config.DashboardSettings) -> dict:
+    """The one sentence the page leads with: the most urgent thing, in words.
+
+    ``tone`` is ``good``, ``warning``, ``critical`` or ``neutral``.  Only the
+    worst reserve gets the headline; the others ride along in the body, so the
+    line stays readable when everything goes wrong at once.
+    """
+    me = state.observation
+    outcome = state.outcome
+    if outcome is not None:
+        together = {True: "The stations succeeded together.", False: "The stations failed collectively.", None: ""}
+        if outcome.aborted:
+            return {"tone": "critical", "title": "Run aborted", "body": together[outcome.collective_success]}
+        if outcome.self_failed:
+            return {"tone": "critical", "title": "Run over: our station failed",
+                    "body": f"Health reached 0 at tick {me.first_failure_tick}. {together[outcome.collective_success]}".strip()}
+        return {"tone": "good", "title": "Run over: our station survived",
+                "body": together[outcome.collective_success]}
+    if state.phase is not model.Phase.PHASE_RUNNING:
+        return {"tone": "neutral", "title": PHASE_HEADLINES.get(state.phase, "Not running"), "body": ""}
+    if me.health <= 0:
+        return {"tone": "critical", "title": "Our station has failed",
+                "body": f"Health reached 0 at tick {me.first_failure_tick}."}
+
+    def helpers(resource: str) -> str:
+        senders = [o["counterparty"] for o in incoming if o["we_get"][resource] > 0]
+        if not senders:
+            return ""
+        return f" {', '.join(senders)} {'has an offer' if len(senders) == 1 else 'have offers'} that would send {resource}."
+
+    unmet = [r for r in reserves if r["last_unmet"]]
+    if unmet:
+        worst = max(unmet, key=lambda r: r["last_unmet"])
+        others = [r["resource"] for r in unmet if r is not worst]
+        body = f"{worst['last_unmet']} {worst['resource']} short last tick, and health falls every tick until it is restocked."
+        if others:
+            body += f" Also short: {', '.join(others)}."
+        return {"tone": "critical", "title": f"Losing health: {worst['resource']} has run out",
+                "body": body + helpers(worst["resource"])}
+
+    consumed = sorted((r for r in reserves if r["cover_ticks"] is not None), key=lambda r: r["cover_ticks"])
+    if not consumed:
+        return {"tone": "good", "title": "All reserves are comfortable", "body": "Nothing is being consumed."}
+    worst = consumed[0]
+    if worst["level"] == "ok":
+        return {"tone": "good", "title": "All reserves are comfortable",
+                "body": f"The tightest is {worst['resource']}, with {_ticks(worst['cover_ticks'])} left."}
+
+    line = settings.critical_cover_ticks if worst["level"] == "critical" else settings.low_cover_ticks
+    body = f"{_ticks(worst['cover_ticks'])} left, under the {line:g}-tick line."
+    others = [f"{r['resource']} ({r['cover_ticks']:.1f})" for r in consumed[1:] if r["level"] != "ok"]
+    if others:
+        body += f" Also low: {', '.join(others)}."
+    title = f"{worst['resource'].capitalize()} is {'nearly out' if worst['level'] == 'critical' else 'running low'}"
+    return {"tone": "critical" if worst["level"] == "critical" else "warning", "title": title,
+            "body": body + helpers(worst["resource"])}
 
 
 def _header(state: model.State, tick_seen_at_ms: float | None) -> dict:
@@ -186,6 +272,8 @@ def _reserve(state: model.State, resource: model.Resource, history, settings) ->
         "level": cover_level(cover, settings),
         "is_specialty": resource is me.specialty,
         "last_production": me.last_production.get(resource),
+        # Before trades: what the station's own economy does to this stock.
+        "net_per_tick": me.last_production.get(resource) - upkeep,
         "last_unmet": me.last_unmet_upkeep.get(resource),
         "imported_total": me.imported_total.get(resource),
         "exported_total": me.exported_total.get(resource),
@@ -210,13 +298,15 @@ def _offers(state: model.State) -> dict:
     def urgency(offer):
         return (offer.expires_tick, offer.created_version)
 
+    # A state lists only offers we are party to, with their whole history, so
+    # this is how our offers have ended so far -- not the wider market's.
+    ended = Counter(o.status.name.removeprefix("OFFER_STATUS_").lower() for o in state.offers)
     return {
         "outgoing": [_offer_row(state, o) for o in sorted(store.my_open_offers(state), key=urgency)],
         "incoming": [_offer_row(state, o) for o in sorted(store.incoming_open_offers(state), key=urgency)],
         "max_outgoing": state.rules.max_open_outgoing_offers,
         "slots_left": store.remaining_offer_slots(state),
-        # Only the count: the live market holds hundreds, and they are not ours.
-        "market_open": sum(1 for offer in state.offers if store.is_open(offer)),
+        "history": {"total": len(state.offers), **ended},
     }
 
 
