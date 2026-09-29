@@ -247,3 +247,97 @@ def test_command_and_catchup_timeouts_scale_with_the_runs_tick_length(
     )
     assert client.request_timeouts == [pytest.approx(expected_command_timeout)]
     assert client.catchup_timeouts == [pytest.approx(expected_catchup_timeout)]
+
+
+class SettlingClient(RecordingClient):
+    """Each command settles at once, as an accept or a taken offer does: the
+    world's ``world_version`` moves on immediately, before the tick does.
+
+    That is exactly what lets several decisions happen inside one tick, which
+    is the scenario ``commands_sent_this_tick`` exists to guard.
+    """
+
+    async def wait_for_version(self, world_version, timeout=10):
+        self.state = dataclasses.replace(self.state, world_version=self.state.world_version + 1)
+        return self.state
+
+
+class DecidesGivenCounts:
+    """Returns a fixed number of actions on each successive call, in order.
+
+    A real policy cannot know how many times it has already been asked this
+    tick -- purity forbids it -- but nothing stops a later decision in the
+    same tick from legitimately finding more candidates than an earlier one
+    did (a new peer's listing arrives, say). This stands in for that.
+    """
+
+    def __init__(self, counts):
+        self.counts = list(counts)
+        self.decided_ticks = []
+
+    def decide(self, decided_state):
+        self.decided_ticks.append(decided_state.tick)
+        n = self.counts[min(len(self.decided_ticks) - 1, len(self.counts) - 1)]
+        return [
+            actions.Advertise(
+                selling=(model.Resource.RESOURCE_WATER,), expires_tick=decided_state.tick + 3
+            )
+            for _ in range(n)
+        ]
+
+
+def test_a_second_decisions_actions_are_dropped_once_the_ticks_budget_is_spent(tmp_path):
+    """Regression: each decision's own limit check has no memory of what an
+    earlier decision already sent this same tick.  Our own commands settle
+    immediately -- before the tick moves on -- so two decisions of 6 and 10
+    against a 10-per-tick budget used to send 16, not 10."""
+    built = state(tick=5, rules=rules(new_commands_per_station_per_tick=10))
+    client = SettlingClient(built)
+    policy = DecidesGivenCounts([6, 10])
+    asyncio.run(run_utility(client, policy, RunLog(tmp_path), RunOutcome(), 0.1, session="s1"))
+
+    assert policy.decided_ticks == [5, 5]  # both decisions happened in the same tick
+    assert len(client.request_ids) == 10  # 6 from the first decision, 4 of the second's 10
+
+    logged = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
+    dropped = [r for r in logged if "budget_exhausted_at_tick" in r]
+    assert [(r["budget_exhausted_at_tick"], len(r["dropped"])) for r in dropped] == [(5, 6)]
+
+
+def test_no_third_decision_once_the_ticks_whole_budget_is_already_spent(tmp_path):
+    """A decision that would have nothing left to send is never even made --
+    the loop waits for the tick to advance instead of spinning on it."""
+    built = state(tick=5, rules=rules(new_commands_per_station_per_tick=10))
+    client = SettlingClient(built)
+    policy = DecidesGivenCounts([10, 5])
+    asyncio.run(run_utility(client, policy, RunLog(tmp_path), RunOutcome(), 0.1, session="s1"))
+
+    assert policy.decided_ticks == [5]  # the second decision never starts
+    assert len(client.request_ids) == 10
+
+
+class RateLimitingClient(SettlingClient):
+    """Answers every command RESULT_CODE_RATE_LIMITED, as the server would if
+    another session already spent this tick's budget before this one's own
+    count -- freshly zeroed by a restart -- had any way of knowing that."""
+
+    async def request(self, message, request_id, timeout=10):
+        self.request_ids.append(request_id)
+        return result(request_id, ok=False, code=model.ResultCode.RESULT_CODE_RATE_LIMITED)
+
+
+def test_a_rate_limited_result_is_taken_as_the_truth_over_our_own_count(tmp_path):
+    """If the server still says no despite our own count saying there was
+    room -- a session restarted mid-tick, say, with no memory of what it had
+    already sent before it died -- its answer wins: the rest of this tick's
+    actions are dropped rather than tried anyway."""
+    built = state(tick=5, rules=rules(new_commands_per_station_per_tick=10))
+    client = RateLimitingClient(built)
+    policy = DecidesGivenCounts([10])
+    asyncio.run(run_utility(client, policy, RunLog(tmp_path), RunOutcome(), 0.1, session="s1"))
+
+    assert len(client.request_ids) == 1  # stopped as soon as the first RATE_LIMITED came back
+
+    logged = [json.loads(line) for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
+    dropped = [r for r in logged if "budget_exhausted_at_tick" in r]
+    assert [(r["budget_exhausted_at_tick"], len(r["dropped"])) for r in dropped] == [(5, 9)]

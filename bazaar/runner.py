@@ -166,6 +166,19 @@ async def run_utility(
     decides afresh.  Nothing worth doing is lost: the agent is pure, so
     anything still worth doing is simply chosen again.
 
+    A policy's own budget only holds within one call to ``decide``: it caps
+    that decision at ``new_commands_per_station_per_tick``, but cannot know
+    how many commands an *earlier* decision already sent this same tick --
+    and our own accepts and offers settle immediately, each pushing a new
+    state that triggers another decision long before the tick itself moves
+    on.  So this loop keeps its own count of commands sent since the tick
+    began, resets it when the tick changes, and stops sending -- not
+    deciding, just sending -- once the run's limit is reached, whatever any
+    single decision asked for.  If the server still answers
+    ``RESULT_CODE_RATE_LIMITED`` (another session on the same station, say),
+    that count is taken as the truth and clamped to the limit rather than
+    argued with.
+
     Waiting for one command's result, and then for our own view to catch up
     with it, are both timed in ticks (``config.COMMAND_TIMEOUT_TICKS`` and
     ``config.VIEW_CATCHUP_TIMEOUT_TICKS``) rather than a fixed number of
@@ -209,13 +222,27 @@ async def run_utility(
 
     decided_versions: set[int] = set()
     issued = 0
+    tracked_tick: int | None = None
+    commands_sent_this_tick = 0
 
     while not expired():
         state = client.state
         if state is None:
             break
+        if state.tick != tracked_tick:
+            tracked_tick = state.tick
+            commands_sent_this_tick = 0
+        budget = state.rules.new_commands_per_station_per_tick
         if state.world_version in decided_versions:
             # Nothing new to think about; wait for the next snapshot.
+            if await client.quiet(seconds=poll_seconds()) is None:
+                continue
+            continue
+        if commands_sent_this_tick >= budget:
+            # An earlier decision already spent this tick's whole budget;
+            # nothing more can go out until the tick advances.  Not marked
+            # decided: once it does advance, this same version (if it is
+            # still the latest) is worth deciding on properly.
             if await client.quiet(seconds=poll_seconds()) is None:
                 continue
             continue
@@ -265,6 +292,23 @@ async def run_utility(
                     },
                 )
                 break
+            if commands_sent_this_tick >= budget:
+                # An earlier decision already spent this tick's whole budget;
+                # the rest waits for the next one, same as a stale batch.
+                dropped = len(chosen) - index
+                print(
+                    f"    tick {state.tick}: command budget of {budget} already spent "
+                    f"this tick; dropping {dropped} action(s)"
+                )
+                run_log.write(
+                    "decisions.jsonl",
+                    {
+                        "world_version": state.world_version,
+                        "budget_exhausted_at_tick": state.tick,
+                        "dropped": [a.describe() for a in chosen[index:]],
+                    },
+                )
+                break
             issued += 1
             request_id = f"utility-{session}-{issued:04d}"
             message = action.to_message(builder, request_id)
@@ -278,6 +322,10 @@ async def run_utility(
 
             print(f"    {action.describe()}  <- {action.reason}")
             activity.sent(action, request_id)
+            # Counted now, not on a successful result: a retry reuses this
+            # same request ID, so the server never charges the tick twice for
+            # it even if this attempt times out or fails.
+            commands_sent_this_tick += 1
             try:
                 result = await _send_with_one_retry(
                     client, message, raw, request_id,
@@ -300,6 +348,12 @@ async def run_utility(
                 return outcome
 
             activity.resolved(request_id, result)
+            if result.code is model.ResultCode.RESULT_CODE_RATE_LIMITED:
+                # Our own count said there was room; the server disagrees --
+                # perhaps a previous session already spent part of this tick's
+                # budget before we did.  Its count is the truth: stop sending
+                # until the tick advances, rather than argue with it.
+                commands_sent_this_tick = budget
             run_log.write(
                 "decisions.jsonl",
                 {
