@@ -158,6 +158,14 @@ async def run_utility(
     The agent decides at most once per ``world_version``, so an extra snapshot
     of unchanged state -- a sync, say -- never triggers the same actions twice.
 
+    A decision is only good for the tick it was made in.  Commands go out one
+    at a time, each waiting for its result, so a batch can outlive its tick --
+    and then its expiries are already due, the offers it accepts may have
+    closed, and upkeep has eaten into the inventory it was priced on.  So once
+    the tick moves on, whatever is left of the batch is dropped and the agent
+    decides afresh.  Nothing worth doing is lost: the agent is pure, so
+    anything still worth doing is simply chosen again.
+
     ``max_seconds`` is ``None`` by default, meaning no limit: a real game may
     sit in ``PHASE_READY`` for a while before an instructor starts it, and the
     agent should stay connected and waiting rather than give up. Stop an
@@ -230,8 +238,25 @@ async def run_utility(
                 continue
             continue
 
-        for action in chosen:
+        for index, action in enumerate(chosen):
             if expired():
+                break
+            latest = client.state
+            if latest is not None and latest.tick != state.tick:
+                dropped = len(chosen) - index
+                print(
+                    f"    tick {state.tick} -> {latest.tick}: dropping {dropped} "
+                    "stale action(s) to decide again"
+                )
+                run_log.write(
+                    "decisions.jsonl",
+                    {
+                        "world_version": state.world_version,
+                        "stale_after_tick": state.tick,
+                        "now_tick": latest.tick,
+                        "dropped": [a.describe() for a in chosen[index:]],
+                    },
+                )
                 break
             issued += 1
             request_id = f"utility-{session}-{issued:04d}"
