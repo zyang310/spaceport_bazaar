@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="skins/scrapbook.css">
 <link rel="stylesheet" href="skins/tycoon.css">
+<link rel="stylesheet" href="skins/pixel.css">
 <style>
   /* Layout and mechanics only.  Every colour, font, border and flourish belongs
      to a skin.  A rule the narrow layouts below change must also live here:
@@ -234,6 +235,7 @@ const SKIN_KEY = "bazaar.skin";
 </script>
 <script src="skins/scrapbook.js"></script>
 <script src="skins/tycoon.js"></script>
+<script src="skins/pixel.js"></script>
 <script>
 // Chosen before first paint, so a remembered skin never flashes the default.
 // ?skin=<id> wins over the remembered one, so a link can name a skin.
@@ -439,11 +441,17 @@ function shipIcon(resource, width = 24) {
 // across a switch, so a hook never needs to clean up after itself.
 const SKIN_DEFAULTS = {
   rocket: [34, 20],                                     // the rocket symbol's viewBox size
+  shipName: "rocket",                                   // what the legend calls it
   geometry: { laneR: 136, planet: { far: 44, near: 52 }, ship: 26 },
   wordmark: () => h("span", { class: "wordmark" }, "Bazaar"),
   tick: (hd) => h("span", { class: "nowrap" }, `Tick ${fmt(hd.tick)} of ${fmt(hd.duration_ticks)}`),
   track: (pct) => [h("span", { class: "fill", style: `width:${pct}%` }), h("span", { class: "marker", style: `left:${pct}%` }, shipIcon(null, 30))],
   decor: (where) => null,                               // stickers for a card: "verdict" or "reserve"
+  // Which symbol draws a planet: ``where`` is "home", "far" (the back half of
+  // the orbit) or "near"; ``id`` lets a skin vary planets of one kind stably.
+  planetSymbol: (kind, where, id) => kind,
+  resourceIcon: (resource, size) => orbIcon(KIND[resource], size),   // on the cargo cards and goals
+  trend: (r) => sparkline(r),                           // a reserve's recent history
   levelBadge: (level) => badge(level.tone, level.icon, level.label),
   verdictMark: (tone) => h("span", { class: "mark", "aria-hidden": "true" }, VERDICT_ICON[tone]),
   mascot: () => null,
@@ -595,8 +603,9 @@ function stationLayout(stations) {
   const out = new Map();
   stations.forEach((st, k) => {
     const a = ((-90 + 180 / n + (360 * k) / n) * Math.PI) / 180;
-    const dia = Math.round((Math.sin(a) < 0 ? size.far : size.near) * shrink);
-    out.set(st.station, { x: STAGE.cx + STAGE.rx * Math.cos(a), y: STAGE.cy + STAGE.ry * Math.sin(a), r: dia / 2, dia, above: Math.sin(a) < -0.5 });
+    const far = Math.sin(a) < 0;
+    const dia = Math.round((far ? size.far : size.near) * shrink);
+    out.set(st.station, { x: STAGE.cx + STAGE.rx * Math.cos(a), y: STAGE.cy + STAGE.ry * Math.sin(a), r: dia / 2, dia, far, above: Math.sin(a) < -0.5 });
   });
   return out;
 }
@@ -607,7 +616,7 @@ function buildPlanets(stations) {
   const compact = stations.length > 12;
   const nodes = stations.map((st) => {
     const p = layout.get(st.station);
-    const use = s("use", { href: sym("rock"), width: 100, height: 100 });
+    const use = s("use", { href: sym(skin.planetSymbol("rock", p.far ? "far" : "near", st.station)), width: 100, height: 100 });
     const els = {
       ping: h("span", { class: "ping", hidden: true }),
       ring: h("span", { class: "sel-ring", hidden: true }),
@@ -668,7 +677,8 @@ function renderMap() {
     const rel = relation(st);
     const kind = st.sells.length ? KIND[st.sells[0]] || "rock" : "rock";
     els.btn.style.background = `var(--${BODY[kind]})`;
-    if (els.use.getAttribute("href") !== sym(kind)) els.use.setAttribute("href", sym(kind));
+    const href = sym(skin.planetSymbol(kind, p.far ? "far" : "near", st.station));
+    if (els.use.getAttribute("href") !== href) els.use.setAttribute("href", href);
     if (els.dots.dataset.sells !== st.sells.join()) {
       els.dots.dataset.sells = st.sells.join();
       els.dots.replaceChildren(...st.sells.map((r) => h("span", { class: `dot ${r}` })));
@@ -696,7 +706,7 @@ function renderHome() {
   const tone = pct >= 0.6 ? "good" : pct >= 0.3 ? "warning" : "critical";
   const kind = KIND[hd.specialty] || "ocean";
   const btn = $("home-btn");
-  btn.replaceChildren(s("svg", { viewBox: "0 0 100 100" }, s("use", { href: sym(kind), width: 100, height: 100 })));
+  btn.replaceChildren(s("svg", { viewBox: "0 0 100 100" }, s("use", { href: sym(skin.planetSymbol(kind, "home", hd.station)), width: 100, height: 100 })));
   btn.style.background = `var(--${BODY[kind]})`;
   btn.setAttribute("aria-pressed", selected === "home" ? "true" : "false");
   btn.setAttribute("aria-label", `${hd.station}, our station: health ${hl.health} of ${hl.max_health}`);
@@ -752,8 +762,8 @@ function renderLegend() {
   $("legend").replaceChildren(
     h("span", {}, key("key-out", 1, 25), "our offer"),
     h("span", {}, key("key-in", 2, 24), "offer for us"),
-    h("span", {}, h("span", { class: "key-ship" }, shipIcon("food", 24)), "rocket = trade just settled"),
-    h("span", {}, h("span", { class: "key-orbs", "aria-hidden": "true" }, ["ocean", "farm", "forge"].map((k) => h("span", { class: `orbicon ${k}` }))),
+    h("span", {}, h("span", { class: "key-ship" }, shipIcon("food", 24)), `${skin.shipName} = trade just settled`),
+    h("span", {}, h("span", { class: "key-orbs", "aria-hidden": "true" }, ["ocean", "farm", "forge"].map((k) => orbIcon(k, 14))),
       "colour = what a planet sells"));
 }
 
@@ -848,7 +858,7 @@ function reserveCard(r) {
   return h("article", { class: "res card", "data-resource": r.resource },
     skin.decor("reserve"),
     h("div", { class: "res-head" },
-      orbIcon(KIND[r.resource], 30),
+      skin.resourceIcon(r.resource, 30),
       h("span", { class: "res-name" }, r.resource),
       r.is_specialty ? h("span", { class: "res-star", title: "our specialty: we produce it" }, "we make it") : null,
       skin.levelBadge(level)),
@@ -870,7 +880,7 @@ function reserveCard(r) {
           h("span", { style: `left:${at(scale.critical_ticks)}` }, fmt(scale.critical_ticks)),
           h("span", { style: `left:${at(scale.low_ticks)}` }, fmt(scale.low_ticks)),
           h("span", {}, `${fmt(scale.max_ticks)}+ ticks`))),
-      sparkline(r),
+      skin.trend(r),
       h("div", { class: "minis" },
         [["MAKES", r.last_production], ["BURNS", r.upkeep], ["BOUGHT", r.imported_total], ["SOLD", r.exported_total]].map(([k, v]) =>
           h("div", { class: "mini" }, h("span", { class: "k" }, k), h("span", { class: "v" }, fmt(v))))),
@@ -1006,7 +1016,7 @@ function buildAgent() {
 function goalRow(g) {
   const buyish = g.verb === "buy";
   return h("div", { class: `goal${buyish ? " buy" : ""}` },
-    orbIcon(KIND[g.resource], 28),
+    skin.resourceIcon(g.resource, 28),
     h("div", { class: "txt" },
       h("div", { class: "row1" },
         h("span", { class: `verb${buyish ? " buy" : ""}` }, g.verb.toUpperCase()),
