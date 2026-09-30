@@ -1,0 +1,408 @@
+/* Retro tycoon: a space-age board game on a teal felt table.  Chunky ink
+   outlines, flip-digit counters, starburst stickers and ribbon banners.
+
+   Everything is scoped to :root[data-skin="tycoon"], so switching skins is one
+   attribute change.  Layout and mechanics are in index.html. */
+@import url("https://fonts.googleapis.com/css2?family=Titan+One&family=Yellowtail&family=Rubik:wght@500;600;700;800&display=swap");
+
+:root[data-skin="tycoon"] {
+  color-scheme: dark;
+  --topbar-h: 75px;
+  --page: #0f2e3d;
+  --ink: #fdf1d8;          /* text on the page */
+  --ink-2: #cfe0e3;
+  --muted: #a9c3c9;
+  --outline: #1b2a3a;      /* every border, and the text on a card */
+  --deep: #0a1a22;         /* the shadow under a raised piece */
+  --cream: #fff6e0;
+  --card: #f7e8c8;
+  --card-2: #eed8ab;
+  --card-ink-2: #3d3325;
+  --card-muted: #6b5a45;
+  --rule: #d9c18f;
+  --yellow: #f4b531;
+  --red: #e8483b;
+  --cyan: #5ec4e8;
+  --halftone: radial-gradient(rgba(255, 255, 255, 0.18) 1.2px, transparent 1.4px);
+  --outline-text: -1.5px -1.5px 0 var(--outline), 1.5px -1.5px 0 var(--outline), -1.5px 1.5px 0 var(--outline), 1.5px 1.5px 0 var(--outline);
+
+  /* A planet's body, a word or line in its colour, and its ships and trend washes. */
+  --water: #3b9bd6;
+  --water-line: #1d6aa0;
+  --water-mark: #3b9bd6;
+  --food: #5cbf5a;
+  --food-line: #2e7d32;
+  --food-mark: #5cbf5a;
+  --components: #f28c28;
+  --components-line: #b35a0e;
+  --components-mark: #f28c28;
+  --rock: #9fb3b8;
+  --ship: var(--cyan);
+
+  /* Status fills, the text that sits on them, and the tone as text on a card. */
+  --good: #3aa655;
+  --good-ink: var(--cream);
+  --good-text: #2e7d32;
+  --warning: var(--yellow);
+  --warning-ink: var(--outline);
+  --warning-text: #8a5a00;
+  --critical: var(--red);
+  --critical-ink: var(--cream);
+  --critical-text: #b8322a;
+  --neutral: #c9d6d9;
+  --neutral-ink: var(--outline);
+  --neutral-text: var(--outline);
+  --accent: var(--cyan);
+  --accent-ink: var(--outline);
+  --accent-text: var(--water-line);
+  --quiet: var(--card-muted);
+  --quiet-ink: var(--cream);
+  --quiet-text: var(--card-muted);
+
+  --display: "Titan One", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --script: "Yellowtail", "Brush Script MT", cursive;
+  --body: "Rubik", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  & body {
+    color: var(--ink);
+    font: 500 14px/1.35 var(--body);
+    background-color: var(--page);
+    background-image: radial-gradient(rgba(253, 241, 216, 0.07) 1.2px, transparent 1.4px);
+    background-size: 18px 18px;
+  }
+  & a { color: var(--water-line); }
+  & h2, & h3, .display { font-family: var(--display); font-weight: 400; }
+  .muted { color: var(--muted); }
+  .card .muted, .soft { color: var(--card-muted); }
+  .caption { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .caption.dark { color: var(--card-muted); }
+  .empty { color: var(--card-muted); font-size: 13px; font-weight: 600; }
+  .toned { color: var(--tone-text); }
+  .badge {
+    gap: 5px; padding: 1px 8px; border: 2px solid var(--outline); border-radius: 8px;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--tone-ink); background: var(--tone);
+  }
+  .card { background: var(--card); color: var(--outline); border: 3px solid var(--outline); border-radius: 18px; box-shadow: 0 5px 0 var(--deep); }
+  .btn {
+    min-height: 44px; padding: 2px 16px 0; gap: 8px;
+    border: 2.5px solid var(--outline); border-radius: 12px;
+    background: var(--components); color: var(--outline);
+    font-family: var(--display); font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase;
+    box-shadow: 0 4px 0 var(--outline);
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { translate: 0 2px; box-shadow: 0 2px 0 var(--outline); }
+  .link { color: var(--water-line); font-size: 12.5px; font-weight: 800; }
+  .link:hover { text-decoration: underline; }
+  :focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+
+  /* --- stickers: starbursts and ribbon banners ------------------------------------------ */
+  .burst { display: flex; align-items: center; justify-content: center; }
+  .burst-shape { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .burst-text { position: relative; font-family: var(--display); white-space: nowrap; }
+  .ribbon, .cargo-head .title {
+    isolation: isolate; display: inline-block; padding: 5px 20px 4px;
+    font-family: var(--display); font-size: 13px; line-height: 1.2; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--cream); text-shadow: var(--outline-text);
+  }
+  .ribbon::before, .ribbon::after, .cargo-head .title::before, .cargo-head .title::after {
+    content: ""; position: absolute; z-index: -1;
+    clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 50%, 100% 100%, 0 100%, 10px 50%);
+  }
+  .ribbon::before, .cargo-head .title::before { inset: 0; background: var(--cream); }
+  .ribbon::after, .cargo-head .title::after { inset: 2px; background: var(--red); }
+
+  /* --- planet icons ----------------------------------------------------------------------- */
+  .orbicon { border-color: var(--outline); }
+  .dots { gap: 3px; }
+  .dot { width: 8px; height: 8px; border: 1.5px solid var(--outline); }
+  .dot.water { background: var(--water); } .dot.food { background: var(--food); } .dot.components { background: var(--components); }
+
+  /* --- header ---------------------------------------------------------------------- */
+  .topbar { background: var(--outline); border-bottom: 3px solid var(--yellow); box-shadow: 0 3px 0 var(--red); }
+  .logo { gap: 10px; }
+  .logo-rocket { flex: none; rotate: -28deg; fill: var(--ship); }
+  .logo-words { display: flex; flex-direction: column; line-height: 1; }
+  .logo-script { font-family: var(--script); font-size: 19px; color: var(--yellow); rotate: -5deg; margin: 0 0 -3px 2px; }
+  .wordmark { font-family: var(--display); font-size: 27px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--cream); text-shadow: 3px 3px 0 var(--red); }
+  .divider { width: 3px; height: 32px; border-radius: 2px; background: #2c4458; }
+  .us { gap: 10px; }
+  .bar .orbicon { border-color: var(--cream); }
+  .us .id { font-family: var(--display); font-size: 21px; color: var(--cream); }
+  .us .world { font-size: 13px; font-weight: 600; }
+  .bar .badge {
+    padding: 3px 12px 2px 10px; border: 0; border-radius: 9px;
+    font-family: var(--display); font-weight: 400; font-size: 13px;
+    box-shadow: 0 3px 0 color-mix(in srgb, var(--tone) 55%, black);
+  }
+  .progress { gap: 12px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .progress b { color: var(--cream); font-weight: 800; }
+  .tickno { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .tickno .k { font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .tickno .of { font-weight: 700; }
+  .tickno .tiles { display: inline-flex; align-items: center; gap: 2px; color: var(--cream); }
+  .tickno .digit {
+    width: 19px; height: 26px; display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--deep); border-radius: 4px;
+    background: linear-gradient(180deg, var(--cream) 0 50%, #efe0bc 50% 100%);
+    color: var(--outline); font-family: var(--display); font-size: 15px;
+  }
+  .track { height: 18px; }
+  .track .rail { position: absolute; inset: 0; border: 2px solid var(--cream); border-radius: 999px; background: var(--deep); overflow: hidden; }
+  .track .fill { display: block; height: 100%; background: repeating-linear-gradient(-45deg, var(--yellow) 0 7px, #f7c85a 7px 14px); }
+  /* The rocket rides just ahead of the fill, its tail on the line. */
+  .track .marker { top: -1px; translate: -37% 0; }
+  .track .marker svg { display: block; }
+  .live { gap: 7px; font-family: var(--display); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .live.good { color: #7fd98f; } .live.warning { color: var(--yellow); } .live.critical { color: #ff8f7a; } .live.neutral { color: var(--muted); }
+  .live .pulse { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--cream); background: currentColor; box-shadow: 0 0 10px currentColor; }
+  .verline { font-size: 12px; font-weight: 700; color: var(--muted); }
+  .skin-picker { gap: 6px; padding: 4px 3px 4px 8px; border: 2px solid #2c4458; border-radius: 10px; color: var(--muted); }
+  .skin-picker:hover { border-color: var(--muted); }
+  .skin-picker select {
+    padding: 2px 22px 1px 2px; border: 0; color: var(--cream);
+    font-family: var(--display); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+    background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23a9c3c9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 6px center;
+  }
+  .skin-picker option { font-family: var(--body); text-transform: none; color: var(--outline); background: var(--card); }
+
+  /* --- layout ------------------------------------------------------------------------ */
+  /* The right padding leaves room for the starbursts that overhang each card. */
+  .cargo { gap: 11px; padding: 2px 14px 8px 3px; }
+  .waiting { color: var(--muted); }
+  .waiting b { color: var(--cream); font-family: var(--display); font-weight: 400; font-size: 24px; }
+  & footer { color: var(--muted); font-size: 12px; font-weight: 700; }
+
+  /* --- verdict: a banner in the tone's colour, with a starburst ---------------------------- */
+  .verdict {
+    gap: 14px; padding: 8px 18px 8px 12px; border-radius: 16px;
+    background-color: var(--banner);
+    background-image: radial-gradient(rgba(27, 42, 58, 0.10) 1.2px, transparent 1.4px);
+    background-size: 7px 7px;
+  }
+  .verdict.good { --banner: #8fdc9b; --burst: var(--good); }
+  .verdict.warning { --banner: var(--yellow); --burst: var(--red); }
+  .verdict.critical { --banner: #f59384; --burst: var(--red); }
+  .verdict.neutral { --banner: var(--card); --burst: var(--cyan); }
+  .verdict .mark { position: relative; width: 50px; height: 50px; rotate: -8deg; }
+  .verdict .burst-shape { fill: var(--burst); }
+  .verdict .burst-text { font-size: 24px; line-height: 1; color: var(--cream); text-shadow: 0 2px 0 var(--outline); }
+  .verdict .words { gap: 1px; }
+  .verdict .title { font-family: var(--display); font-size: 20px; line-height: 1.2; }
+  .verdict .body { font-size: 14px; font-weight: 600; }
+
+  /* --- the map --------------------------------------------------------------------------- */
+  .sunburst {
+    left: 110px; top: 50px; width: 500px; height: 500px; border-radius: 50%;
+    -webkit-mask-image: radial-gradient(circle closest-side, #000 30%, transparent 100%);
+    mask-image: radial-gradient(circle closest-side, #000 30%, transparent 100%);
+  }
+  .sunburst .rays {
+    width: 100%; height: 100%; border-radius: 50%;
+    background: repeating-conic-gradient(from 0deg, rgba(244,181,49,0.16) 0deg 7.5deg, rgba(244,181,49,0) 7.5deg 15deg);
+    animation: spin 90s linear infinite;
+  }
+  .stage-layer .tw { animation: twinkle 2.8s ease-in-out infinite alternate; }
+  .lane-trade { stroke: rgba(255,246,224,0.45); stroke-width: 2.5; stroke-linecap: round; }
+  .lane-out { stroke: rgba(255,246,224,0.85); stroke-width: 2.5; stroke-dasharray: 7 7; stroke-linecap: round; }
+  .lane-heads { fill: var(--cream); }
+  .lane-in { stroke: var(--cyan); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 0.5 9.5; animation: flow 1.2s linear infinite; }
+
+  .home-btn { width: 190px; height: 190px; border: 4px solid var(--outline); box-shadow: 0 7px 0 var(--deep), 0 0 0 5px rgba(255,246,224,0.18); }
+  .home-btn use { stroke-width: 3px; }
+  .home-btn:focus-visible { outline-offset: 10px; }
+  .home-sel, .home-alarm { left: 360px; top: 300px; translate: -50% -50%; border-radius: 50%; }
+  .home-sel { width: 216px; height: 216px; border: 3px dashed var(--cream); }
+  .home-alarm { width: 300px; height: 300px; background: radial-gradient(circle closest-side, rgba(232,72,59,0) 56%, rgba(232,72,59,0.55) 70%, rgba(232,72,59,0) 92%); animation: alarm 1.7s ease-in-out infinite; }
+  .home-ribbon { left: 334px; top: 194px; translate: -50% -100%; padding: 6px 24px 5px; font-size: 16px; letter-spacing: 0.03em; text-transform: none; white-space: nowrap; }
+  .home-ribbon::before { background: var(--outline); }
+  .home-gauge {
+    left: 178px; top: 213px; width: 124px; padding: 6px 8px 5px;
+    display: flex; flex-direction: column; align-items: center;
+    background: var(--card); color: var(--outline); border: 3px solid var(--outline); border-radius: 14px;
+    box-shadow: 0 4px 0 var(--deep); rotate: -6deg;
+  }
+  .home-gauge .dial { display: block; }
+  .home-gauge .reading { display: flex; align-items: baseline; gap: 5px; line-height: 1.1; }
+  .home-gauge .k { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--card-muted); }
+  .home-gauge .v { font-family: var(--display); font-size: 18px; color: var(--tone-text); }
+  .home-gauge .of { font-size: 12px; font-weight: 700; color: var(--card-muted); }
+
+  .planet { border: 3px solid var(--outline); box-shadow: 0 4px 0 var(--deep); }
+  .planet:focus-visible { outline-offset: 6px; }
+  .planet use { stroke-width: 2px; }
+  .ping { inset: -6px; border: 3px solid var(--cyan); animation: ping 2.2s ease-out infinite; }
+  .sel-ring { inset: -11px; border: 3px dashed var(--cream); }
+  .plabel { flex-direction: column; padding: 2px 9px 3px; border: 2px solid var(--outline); border-radius: 7px; background: #fdf1d8; box-shadow: 0 3px 0 var(--deep); line-height: 1.2; }
+  .plabel[data-tone="good"] { background: #d3f0cf; }
+  .plabel[data-tone="warning"] { background: #ffe08a; }
+  .plabel[data-tone="accent"] { background: #cdeefa; }
+  .plabel .bullet { display: none; }
+  .plabel .cols { align-items: center; }
+  .plabel .pline { gap: 5px; }
+  .plabel .pid { font-family: var(--display); font-weight: 400; font-size: 13px; }
+  .plabel .rel { font-size: 12px; font-weight: 700; color: var(--tone-text); }
+  .plabel .rel.warning { color: #6b4600; }
+
+  /* --- inspector and legend ---------------------------------------------------------------- */
+  .inspector { min-height: 80px; padding: 10px 20px; gap: 18px; }
+  .inspector .who { gap: 12px; }
+  .inspector .who-k { font-size: 10px; }
+  .inspector .who-name { font-family: var(--display); font-size: 20px; line-height: 1.25; }
+  .inspector .tags { gap: 0 8px; font-size: 12px; font-weight: 700; color: var(--card-muted); }
+  .inspector .tags > span { display: inline; }
+  .inspector .tags .dot { display: none; }
+  .inspector .tags b { font-weight: 700; color: var(--outline); }
+  .word.water { color: var(--water-line); } .word.food { color: var(--food-line); } .word.components { color: var(--components-line); }
+  .inspector .rule { width: 3px; height: 44px; border-radius: 2px; background: var(--rule); }
+  .inspector .now { gap: 5px; }
+  .inspector .now .t { font-family: var(--display); font-size: 16px; color: var(--tone-text); }
+  .inspector .terms { gap: 4px 12px; font-size: 13px; font-weight: 700; }
+  .inspector .terms > .chip { gap: 6px; }
+  .inspector .terms .bundle .chip { padding: 1px 9px; border: 2px solid var(--outline); border-radius: 7px; background: var(--cream); }
+  .inspector .terms .note { color: var(--card-muted); }
+  .inspector .past .v { font-family: var(--display); font-size: 20px; line-height: 1.25; }
+  .inspector .past .k { font-size: 12px; font-weight: 700; color: var(--card-muted); }
+  .legend { gap: 6px 20px; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+  .legend > span { gap: 7px; }
+  .key-out { stroke: var(--cream); stroke-width: 2.5; stroke-dasharray: 5 4; stroke-linecap: round; }
+  .key-in { stroke: var(--cyan); stroke-width: 4.5; stroke-dasharray: 0.5 7; stroke-linecap: round; }
+  .key-ship svg { display: block; }
+  .key-orbs { display: inline-flex; gap: 3px; }
+  .key-orbs .orbicon { width: 14px; height: 14px; border-width: 2px; border-color: var(--cream); }
+
+  /* --- bundles of resources ------------------------------------------------------------------ */
+  .bundle { gap: 4px 10px; }
+  .chip { gap: 5px; }
+  .chip b { font-weight: 800; }
+  .chip .name { color: var(--card-ink-2); }
+  .chip.boxed { padding: 1px 8px; border: 2px solid var(--outline); border-radius: 7px; background: var(--cream); font-size: 13px; }
+
+  /* --- cargo hold: a coloured band per card, flip digits, and a starburst for the level --- */
+  .cargo-head { align-items: center; padding: 0 2px; }
+  .cargo-head .title { position: relative; }
+  .cargo-head .sub { font-family: var(--script); font-size: 18px; color: var(--yellow); }
+  .res { padding: 0; gap: 0; }
+  .res[data-resource="water"] { --band: #2f86c2; }
+  .res[data-resource="food"] { --band: #3f9a45; }
+  .res[data-resource="components"] { --band: #d9731a; }
+  .res-head {
+    gap: 9px; padding: 6px 12px;
+    background-color: var(--band); background-image: var(--halftone); background-size: 7px 7px;
+    border-bottom: 3px solid var(--outline); border-radius: 15px 15px 0 0;
+  }
+  .res-name { font-family: var(--display); font-size: 19px; color: var(--cream); text-transform: capitalize; text-shadow: var(--outline-text), 0 3px 0 var(--outline); }
+  .res-star { gap: 4px; padding: 1px 8px 1px 6px; border: 2px solid var(--outline); border-radius: 999px; background: var(--cream); font-size: 11px; font-weight: 800; color: var(--outline); white-space: nowrap; }
+  .res-star::before { content: "✦"; color: var(--red); font-size: 12px; line-height: 1; }
+  .res .burst { position: absolute; right: -12px; top: -14px; width: 52px; height: 52px; }
+  .res .burst .burst-shape { fill: var(--tone); }
+  .res .burst .burst-text { font-size: 12px; text-transform: uppercase; color: var(--tone-ink); }
+  .res .burst.good .burst-text, .res .burst.critical .burst-text { text-shadow: 0 1.5px 0 var(--outline); }
+  /* "Critical" is the longest word: a bigger sticker, with the mark on its own line. */
+  .res .burst.critical { width: 70px; height: 70px; right: -18px; top: -24px; }
+  .res .burst.critical .burst-text { width: 52px; font-size: 9.5px; line-height: 1.05; text-align: center; white-space: normal; }
+  .res[data-resource="water"] .burst { rotate: 12deg; }
+  .res[data-resource="food"] .burst { rotate: -10deg; }
+  .res[data-resource="components"] .burst { rotate: 8deg; }
+  .res-body { gap: 6px; padding: 9px 14px 10px; }
+  .amount-row, .amount-wrap { align-items: center; gap: 8px; }
+  .amount .tiles { display: inline-flex; gap: 3px; }
+  .amount .digit {
+    width: 23px; height: 30px; display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--outline); border-radius: 5px; box-shadow: 0 2px 0 var(--outline);
+    background: linear-gradient(180deg, var(--cream) 0 50%, #f1e1bb 50% 100%);
+    font-family: var(--display); font-size: 19px;
+  }
+  .amount-note { font-size: 13px; font-weight: 600; color: var(--card-muted); }
+  .net { font-size: 13px; font-weight: 800; }
+  .gauge { gap: 4px; }
+  .gauge-head { font-size: 13px; }
+  .gauge-k { font-weight: 700; color: var(--card-ink-2); }
+  .gauge .toned { font-weight: 800; }
+  .gauge-bar { height: 15px; border: 2.5px solid var(--outline); border-radius: 999px; background: var(--cream); }
+  /* An ink edge where the fill stops; the bar's own clip hides it when full. */
+  .gauge-bar .fill { background: repeating-linear-gradient(-45deg, var(--tone) 0 6px, color-mix(in srgb, var(--tone) 80%, white) 6px 12px); box-shadow: 2.5px 0 0 var(--outline); }
+  .gauge-bar .notch { width: 2.5px; background: var(--outline); }
+  .gauge-scale { height: 13px; font-size: 10.5px; line-height: 13px; font-weight: 700; color: var(--card-muted); }
+  .spark { height: 24px; }
+  .spark-fill { fill: var(--res); fill-opacity: 0.22; }
+  .spark-line { stroke: var(--res-line); stroke-width: 2.8; stroke-linejoin: round; stroke-linecap: round; }
+  .spark-cross { stroke: rgba(27, 42, 58, 0.4); stroke-width: 1.5; }
+  .spark-dot { width: 12px; height: 12px; background: var(--res); border: 2.5px solid var(--outline); }
+  .spark-empty { height: 24px; display: flex; align-items: center; color: var(--card-muted); font-size: 12px; font-weight: 600; }
+  .tooltip { padding: 3px 8px; border-radius: 6px; background: var(--outline); color: var(--cream); font-size: 12px; font-weight: 700; }
+  .minis { gap: 6px; padding-top: 6px; border-top: 2px dashed var(--rule); line-height: 1.2; }
+  .minis .k { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; color: var(--card-muted); }
+  .minis .v { font-family: var(--display); font-size: 15px; }
+  .alert { padding: 5px 10px; border: 2px solid var(--outline); border-radius: 9px; font-size: 12px; font-weight: 800; color: var(--tone-ink); background: var(--tone); }
+
+  /* --- agent panel --------------------------------------------------------------------------- */
+  .agent { border-radius: 20px; box-shadow: 0 6px 0 var(--deep); }
+  .agent-head {
+    gap: 12px; padding: 9px 14px;
+    background-color: #1d7468; background-image: radial-gradient(rgba(255,255,255,0.12) 1.2px, transparent 1.4px); background-size: 7px 7px;
+    border-bottom: 3px solid var(--outline);
+  }
+  .agent-head .mascot { flex: none; }
+  .agent-head .btn { margin-left: auto; }
+  .agent-id { line-height: 1.1; }
+  .agent-id .caption { font-size: 12px; color: var(--cream); }
+  .agent-name { font-family: var(--script); font-size: 30px; color: var(--cream); text-shadow: 2px 2px 0 var(--outline); }
+  .agent section { padding: 12px 16px; gap: 10px; border-bottom: 2px dashed var(--rule); }
+  .agent section:last-child { border-bottom: 0; padding-bottom: 14px; }
+  .agent .grow { gap: 9px; }
+  .now-block { gap: 1px; }
+  .headline { font-family: var(--display); font-size: 22px; line-height: 1.15; }
+  .range, .strip-key, .strip-ends { font-size: 11px; font-weight: 700; color: var(--card-muted); }
+  .goal { gap: 10px; padding: 6px 10px; border: 2px solid var(--rule); border-radius: 12px; background: var(--card-2); }
+  .goal.buy { background: #fbe3a0; border-color: var(--outline); }
+  .goal .txt { gap: 1px; }
+  .goal .row1 { gap: 8px; }
+  .goal .verb { padding: 0 7px; border: 2px solid var(--outline); border-radius: 6px; background: var(--cream); color: var(--outline); font-size: 11px; font-weight: 800; letter-spacing: 0.1em; }
+  .goal .verb.buy { background: var(--yellow); }
+  .goal .res-word { font-family: var(--display); font-size: 15px; }
+  .goal .text { font-size: 12.5px; font-weight: 600; color: var(--card-ink-2); }
+  .stats { gap: 10px; }
+  .stat { line-height: 1.15; }
+  .stat .v { font-family: var(--display); font-size: 28px; color: var(--tone-text); }
+  .stat .k { font-size: 12px; font-weight: 700; color: var(--card-muted); }
+  .problem { padding: 6px 12px; border-radius: 10px; font-size: 12.5px; font-weight: 600; color: var(--card-ink-2); background: var(--card-2); }
+  .problem.good { background: #d3f0cf; color: #1f5a2a; }
+  .problem.critical { background: #f9c9c2; color: #7a1d14; }
+  .event { gap: 8px; font-size: 13px; font-weight: 600; }
+  .event .icon { width: 24px; height: 24px; border: 2px solid var(--outline); color: var(--tone-ink); background: var(--tone); }
+  /* A dotted leader from the words to the tick, as in a price list. */
+  .event .text { display: flex; align-items: baseline; gap: 8px; color: var(--outline); }
+  .event .text::after { content: ""; flex: 1 0 6px; border-bottom: 2px dotted #c9ae78; }
+  .event .t { font-size: 11px; font-weight: 800; color: var(--card-muted); }
+  .strip .base { background: var(--outline); }
+  .strip .up span, .strip .down span { width: 11px; border: 2px solid var(--outline); }
+  .strip .up span { background: var(--good); border-bottom: 0; border-radius: 4px 4px 0 0; }
+  .strip .down span { background: var(--red); border-top: 0; border-radius: 0 0 4px 4px; }
+  .swatch { width: 9px; height: 9px; border: 1.5px solid var(--outline); border-radius: 3px; margin-right: 4px; }
+  .swatch.up { background: var(--good); }
+  .swatch.down { background: var(--red); margin-left: 6px; }
+
+  /* --- the full action log ------------------------------------------------------------------- */
+  & dialog.log { color: var(--outline); background: var(--card); border: 3px solid var(--outline); border-radius: 18px; box-shadow: 0 6px 0 var(--deep), 0 20px 40px rgba(0,0,0,.45); }
+  & dialog.log::backdrop { background: rgba(10, 26, 34, 0.72); }
+  .log-title { font-size: 20px; }
+  .log-head { gap: 12px; padding: 12px 16px 12px 20px; border-bottom: 3px solid var(--outline); background: var(--card-2); }
+  .log-head .sub { color: var(--card-muted); font-size: 12.5px; font-weight: 700; }
+  .log-empty { padding: 18px 20px; }
+  .tick-head { gap: 10px; padding: 7px 20px; background: var(--card-2); border-bottom: 2px solid var(--rule); }
+  .tick-head .tick-title { font-family: var(--display); font-size: 15px; }
+  .tick-head .tick-v, .tick-head .right { color: var(--card-muted); font-size: 12px; font-weight: 700; }
+  .act { gap: 16px; padding: 11px 20px; border-bottom: 2px dashed var(--rule); }
+  .act .what { gap: 5px; }
+  .act .line { gap: 6px 10px; }
+  .act .kind { padding: 1px 7px; border-radius: 6px; background: var(--outline); color: var(--cream); font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+  .act .who { font-weight: 800; }
+  .act .why { color: var(--card-ink-2); font-size: 13px; font-weight: 600; }
+  .act .detail { font-size: 12px; font-weight: 800; color: var(--tone-text); }
+  .act .until { font-size: 12px; font-weight: 700; color: var(--card-muted); }
+  .act .score { font-family: var(--display); }
+  .rid { color: var(--card-muted); font-size: 11px; font-weight: 600; }
+  .arrow { color: var(--card-muted); }
+}

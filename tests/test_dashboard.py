@@ -7,6 +7,7 @@ and use plain ``asyncio.run``, as ``test_runner.py`` does.
 
 import asyncio
 import json
+import re
 import urllib.request
 from collections import Counter
 from pathlib import Path
@@ -24,6 +25,7 @@ from .factories import (COMPONENTS, FOOD, WATER, advertisement, bundle, observat
                         state)
 
 FIXTURES = Path(__file__).parent / "fixtures"
+SKINS = Path(__file__).parent.parent / "bazaar" / "dashboard" / "skins"
 
 
 def transaction(transaction_id="tx-1", proposer_id="P02", recipient_id="P01",
@@ -568,6 +570,25 @@ def test_the_server_serves_the_page_the_view_and_a_live_feed():
                 dashboard.on_state(state(tick=8))
                 pushed = json.loads(await asyncio.wait_for(ws.recv(), 5))
                 assert pushed["header"]["tick"] == 8
+        finally:
+            await server.stop()
+
+    asyncio.run(scenario())
+
+
+def test_the_page_links_every_skin_file_and_each_is_served_with_its_type():
+    async def scenario():
+        server = DashboardServer(Dashboard())
+        url = await server.start("127.0.0.1", 0)
+        try:
+            _, _, page = await asyncio.to_thread(fetch, url)
+            linked = set(re.findall(r'(?:href|src)="(skins/[^"]+)"', page))
+            on_disk = {f"skins/{f.name}" for f in SKINS.iterdir() if f.suffix in (".css", ".js")}
+            assert linked == on_disk
+            for path in sorted(linked):
+                status, content_type, body = await asyncio.to_thread(fetch, url + path)
+                expected = "text/css" if path.endswith(".css") else "text/javascript"
+                assert status == 200 and content_type.startswith(expected) and body
         finally:
             await server.stop()
 

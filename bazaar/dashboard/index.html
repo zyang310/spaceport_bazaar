@@ -1,138 +1,64 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-skin="scrapbook">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bazaar dashboard</title>
-<!-- Fonts are a nicety: offline, the fallbacks in each stack take over. -->
+<!-- A skin is a stylesheet scoped to :root[data-skin="<id>"] and a script that
+     registers its symbols and shapes; the page switches between them in place.
+     Each stylesheet imports its own fonts: offline, the fallbacks take over. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Figtree:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="skins/scrapbook.css">
+<link rel="stylesheet" href="skins/tycoon.css">
 <style>
-  :root {
-    color-scheme: dark;
-    --page: #221e44;
-    --dark: #2a2446;
-    --card: #fdf3e1;
-    --ink: #fdf3e1;
-    --ink-2: #c9c3e6;
-    --muted: #9891c4;
-    --card-ink: #2a2446;
-    --card-ink-2: #4d4670;
-    --card-muted: #655e87;
-    --line: #e2cfa8;
-    --track: rgba(253, 243, 225, 0.16);
-
-    /* One colour per resource, everywhere on the page. */
-    --water: #5bb0f5;
-    --water-line: #1f6fb8;
-    --food: #6fd394;
-    --food-line: #2b7f45;
-    --components: #ffab5e;
-    --components-line: #b45510;
-    --rock: #b3a9d9;
-
-    /* Status: only where the colour means good or bad, always with a symbol and a word. */
-    --good: #9ee6b4;
-    --good-ink: #1c3a28;
-    --warning: #ffd35a;
-    --warning-ink: #4a3000;
-    --critical: #ffa3b1;
-    --critical-ink: #5a0f1f;
-    --neutral: #e2d8f5;
-    --neutral-ink: #2a2446;
-    --accent: #9fd4ff;
-    --pink: #ff8ab2;
-
-    --display: "Bagel Fat One", "Arial Rounded MT Bold", system-ui, sans-serif;
-    --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
-  }
-
+  /* Layout and mechanics only.  Every colour, font, border and flourish belongs
+     to a skin.  A rule the narrow layouts below change must also live here:
+     a skin's scoped rule would outrank the media query. */
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  body {
-    margin: 0;
-    min-height: 100vh;
-    color: var(--ink);
-    font: 600 14px/1.4 var(--body);
-    background-color: var(--page);
-    background-image: radial-gradient(rgba(253, 243, 225, 0.09) 1.3px, transparent 1.5px);
-    background-size: 22px 22px;
-  }
+  body { margin: 0; min-height: 100vh; }
   button { font: inherit; color: inherit; }
-  a { color: var(--accent); }
-  h2, h3 { margin: 0; font-family: var(--display); font-weight: 400; }
-  .display { font-family: var(--display); font-weight: 400; }
+  h2, h3 { margin: 0; font-weight: 400; }
   .num { font-variant-numeric: tabular-nums; }
   .nowrap { white-space: nowrap; }
-  .muted { color: var(--muted); }
-  .caption { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 800; }
-  .caption.dark { color: var(--card-muted); }
-  .empty { color: var(--card-muted); font-size: 13px; font-weight: 700; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-  /* Tones: a class sets --tone, and badges, bars and text read it. */
-  .good { --tone: var(--good); --tone-ink: var(--good-ink); }
-  .warning { --tone: var(--warning); --tone-ink: var(--warning-ink); }
-  .critical { --tone: var(--critical); --tone-ink: var(--critical-ink); }
-  .neutral { --tone: var(--neutral); --tone-ink: var(--neutral-ink); }
-  .accent { --tone: var(--accent); --tone-ink: var(--card-ink); }
-  .quiet { --tone: var(--card-muted); --tone-ink: var(--card-ink); }
-  .toned { color: var(--tone); }
-  .badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 2px 9px; border-radius: 7px; white-space: nowrap;
-    font-size: 12px; font-weight: 900;
-    color: var(--tone-ink); background: var(--tone);
-    box-shadow: 0 2px 0 rgba(10, 8, 30, 0.28);
-  }
-  .card {
-    background: var(--card);
-    color: var(--card-ink);
-    border-radius: 16px;
-    box-shadow: 0 3px 0 rgba(10, 8, 30, 0.35), 0 12px 22px rgba(0, 0, 0, 0.3);
-  }
-  .btn {
-    min-height: 40px; padding: 0 16px;
-    display: inline-flex; align-items: center; gap: 8px;
-    border-radius: 999px; border: 0;
-    background: var(--dark); color: var(--card);
-    font-family: var(--body); font-size: 13px; font-weight: 800; cursor: pointer;
-    box-shadow: 0 3px 0 rgba(10, 8, 30, 0.35);
-  }
-  .btn:hover { filter: brightness(1.12); }
-  .link { background: none; border: 0; padding: 0; min-height: 0; color: var(--water-line); font-size: 12.5px; font-weight: 800; cursor: pointer; }
-  .link:hover { text-decoration: underline; }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  /* Tones: a class sets --tone (a fill), --tone-ink (text on that fill) and
+     --tone-text (the tone as text on a card); each skin decides which it reads. */
+  .good { --tone: var(--good); --tone-ink: var(--good-ink); --tone-text: var(--good-text); }
+  .warning { --tone: var(--warning); --tone-ink: var(--warning-ink); --tone-text: var(--warning-text); }
+  .critical { --tone: var(--critical); --tone-ink: var(--critical-ink); --tone-text: var(--critical-text); }
+  .neutral { --tone: var(--neutral); --tone-ink: var(--neutral-ink); --tone-text: var(--neutral-text); }
+  .accent { --tone: var(--accent); --tone-ink: var(--accent-ink); --tone-text: var(--accent-text); }
+  .quiet { --tone: var(--quiet); --tone-ink: var(--quiet-ink); --tone-text: var(--quiet-text); }
+  /* Likewise per resource, so a mark takes its colours from the card it sits in. */
+  [data-resource="water"] { --res: var(--water); --res-line: var(--water-line); --res-mark: var(--water-mark); }
+  [data-resource="food"] { --res: var(--food); --res-line: var(--food-line); --res-mark: var(--food-mark); }
+  [data-resource="components"] { --res: var(--components); --res-line: var(--components-line); --res-mark: var(--components-mark); }
 
-  /* --- the tape ------------------------------------------------------------------- */
-  .tape { position: absolute; height: 19px; border-radius: 2px; background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.22) 0 5px, rgba(255,255,255,0) 5px 10px); pointer-events: none; }
-
-  /* --- planet icons: the illustrated stickers, borrowed at every size ------------------ */
-  .orbicon { display: inline-flex; flex: none; border-radius: 50%; border-style: solid; border-color: #fffaf0; overflow: hidden; box-shadow: 0 2px 4px rgba(20, 14, 50, 0.4); }
+  .badge, .btn, .chip, .live, .skin-picker { display: inline-flex; align-items: center; }
+  .badge, .chip, .live { white-space: nowrap; }
+  .btn, .link, .skin-picker { cursor: pointer; }
+  .skin-picker .palette { flex: none; }
+  .skin-picker select { appearance: none; font: inherit; cursor: pointer; }
+  .link { background: none; border: 0; padding: 0; }
+  .orbicon { display: inline-flex; flex: none; border-radius: 50%; border-style: solid; overflow: hidden; }
   .orbicon svg { display: block; }
-  .orbicon.ocean, .home-orb.ocean, .planet-orb.ocean { background: var(--water); }
-  .orbicon.farm, .home-orb.farm, .planet-orb.farm { background: var(--food); }
-  .orbicon.forge, .home-orb.forge, .planet-orb.forge { background: var(--components); }
-  .orbicon.rock, .home-orb.rock, .planet-orb.rock { background: var(--rock); }
-  .dots { display: inline-flex; gap: 3px; }
-  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex: none; }
-  .dot.water { background: var(--water-line); } .dot.food { background: var(--food-line); } .dot.components { background: var(--components-line); }
+  .orbicon.ocean { background: var(--water); } .orbicon.farm { background: var(--food); }
+  .orbicon.forge { background: var(--components); } .orbicon.rock { background: var(--rock); }
+  .dots { display: inline-flex; }
+  .dot { display: inline-block; flex: none; border-radius: 50%; }
+  .bundle { display: inline-flex; flex-wrap: wrap; align-items: center; }
+  .chip b { font-variant-numeric: tabular-nums; }
 
   /* --- header ---------------------------------------------------------------------- */
-  .topbar { position: sticky; top: 0; z-index: 5; background: var(--page); border-bottom: 1px solid rgba(253, 243, 225, 0.12); }
+  .topbar { position: sticky; top: 0; z-index: 5; }
   .bar { min-height: 72px; padding: 8px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
-  .wordmark { font-family: var(--display); font-size: 26px; color: var(--card); text-shadow: 2.5px 2.5px 0 var(--pink); }
-  .divider { width: 2px; height: 28px; border-radius: 1px; background: rgba(253, 243, 225, 0.18); }
-  .us { display: flex; align-items: center; gap: 9px; }
-  .us .id { font-family: var(--display); font-size: 18px; color: var(--card); }
-  .progress { flex: 1 1 280px; min-width: 220px; display: flex; align-items: center; gap: 12px; font-size: 12px; font-weight: 800; }
-  .progress b { color: var(--card); }
-  .track { position: relative; flex: 1; height: 0; border-top: 3px dashed var(--track); }
-  .track .fill { position: absolute; left: 0; top: -1.5px; height: 3px; border-radius: 2px; background: var(--warning); }
-  .track .marker { position: absolute; top: -10px; transform: translateX(-50%); filter: drop-shadow(0 2px 2px rgba(0,0,0,.45)); }
-  .track .flag { position: absolute; right: -2px; top: -13px; }
-  .live { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 900; color: var(--tone); white-space: nowrap; }
-  .live .pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--tone); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tone) 25%, transparent); }
-  .verline { font-size: 12px; font-weight: 800; color: var(--muted); }
+  .bar-main { display: contents; }
+  .us { display: flex; align-items: center; }
+  .progress { flex: 1 1 280px; min-width: 220px; display: flex; align-items: center; }
+  .track { position: relative; flex: 1; }
+  .track .marker { position: absolute; translate: -50% 0; }
 
   /* --- layout ------------------------------------------------------------------------ */
   main, footer, .waiting { position: relative; z-index: 1; }
@@ -142,12 +68,15 @@
     grid-template-areas: "cargo center agent";
     gap: 18px;
     padding: 16px 24px 22px;
-    height: calc(100vh - 73px);
+    height: calc(100vh - var(--topbar-h, 73px));
   }
   .layout.dimmed { opacity: 0.55; transition: opacity 0.3s; }
-  .cargo { grid-area: cargo; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow-y: auto; padding: 2px 3px; }
+  .cargo { grid-area: cargo; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
   .center { grid-area: center; display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; }
   .agent { grid-area: agent; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+  .waiting { text-align: center; padding: 120px 16px; }
+  .waiting b { display: block; margin-bottom: 8px; }
+  footer { padding: 0 24px 12px; }
   @media (max-width: 1180px) {
     .layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "center center" "cargo agent"; height: auto; }
     .cargo, .agent, .agent .grow { overflow: visible; }
@@ -165,261 +94,164 @@
   }
 
   /* --- verdict ------------------------------------------------------------------------- */
-  .verdict { position: relative; display: flex; align-items: center; gap: 14px; padding: 12px 20px; transform: rotate(-0.3deg); }
-  .verdict .mark { width: 34px; height: 34px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--dark); color: var(--tone); }
-  .verdict .words { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-  .verdict .title { font-family: var(--display); font-size: 17px; }
-  .verdict .body { font-size: 13px; font-weight: 700; color: var(--card-ink-2); }
+  .verdict { position: relative; display: flex; align-items: center; }
+  .verdict .mark { flex: none; display: flex; align-items: center; justify-content: center; }
+  .verdict .words { display: flex; flex-direction: column; min-width: 0; }
 
   /* --- the map: a fixed 720x600 stage, scaled to fit ------------------------------------- */
   .map { position: relative; flex: 1 1 auto; min-height: 300px; }
   .stage { position: absolute; left: 50%; top: 50%; width: 720px; height: 600px; transform: translate(-50%, -50%) scale(var(--s, 1)); }
   .stage > * { position: absolute; }
-  .stagestars { left: 0; top: 0; width: 720px; height: 600px; pointer-events: none; }
-  .stagestars .tw { animation: twinkle 2.6s ease-in-out infinite alternate; }
-  .lanes { left: 0; top: 0; width: 720px; height: 600px; overflow: visible; pointer-events: none; }
-  .planets { left: 0; top: 0; width: 720px; height: 600px; pointer-events: none; }
+  /* The skin draws into three layers: behind the lanes, between the ships and
+     our planet, and in front of our planet but under the other planets. */
+  .stage-layer, .lanes, .ships, .planets { left: 0; top: 0; width: 720px; height: 600px; pointer-events: none; }
+  .stage-layer > * { position: absolute; }
+  .stage-layer > svg { left: 0; top: 0; overflow: visible; }
+  .lanes { overflow: visible; }
+  .lane-trade, .lane-out, .lane-in { fill: none; }
   .planets .planet { pointer-events: auto; }
-  .lanes .flow { animation: flow 1.3s linear infinite; }
-  .ships { left: 0; top: 0; width: 720px; height: 600px; pointer-events: none; }
-  .ship { position: absolute; left: 0; top: 0; width: 26px; height: 15px; offset-rotate: auto; animation: fly 3.5s linear 1 both; filter: drop-shadow(1px 0 0 #fffaf0) drop-shadow(-1px 0 0 #fffaf0) drop-shadow(0 1px 0 #fffaf0) drop-shadow(0 -1px 0 #fffaf0) drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
+  .ship { position: absolute; left: 0; top: 0; offset-rotate: auto; animation: fly 3.5s linear 1 both; }
+  .ship svg { display: block; }
   .ship.still { animation: none; offset-distance: 50%; }
   /* Labels keep a readable size when the stage shrinks. */
   .scaled-text { font-size: calc(12px / max(var(--s, 1), 0.75)); }
-
-  .orbit { fill: none; }
-  .home-halo { left: 200px; top: 140px; width: 320px; height: 320px; border-radius: 50%; pointer-events: none; --halo: 91, 176, 245; background: radial-gradient(circle closest-side, rgba(var(--halo), 0) 60%, rgba(var(--halo), 0.35) 68%, rgba(var(--halo), 0) 88%); }
-  .home-halo.farm { --halo: 111, 211, 148; } .home-halo.forge { --halo: 255, 171, 94; } .home-halo.rock { --halo: 179, 169, 217; }
-  .home-alarm { left: 188px; top: 128px; width: 344px; height: 344px; border-radius: 50%; pointer-events: none; background: radial-gradient(circle closest-side, rgba(255,138,178,0) 58%, rgba(255,138,178,.45) 72%, rgba(255,138,178,0) 90%); animation: alarm 1.7s ease-in-out infinite; }
-  .home-sel { left: 208px; top: 148px; width: 304px; height: 304px; border-radius: 50%; border: 2px dashed rgba(253,243,225,0.7); pointer-events: none; }
-  .home-ring { left: 220px; top: 160px; width: 280px; height: 280px; overflow: visible; pointer-events: none; }
-  .home-ring .arc { stroke: var(--tone); transition: stroke-dasharray 0.6s ease; }
-  .home-btn { left: 256px; top: 196px; width: 208px; height: 208px; padding: 0; border: 8px solid #fffaf0; border-radius: 50%; background: none; cursor: pointer; box-shadow: 0 6px 0 rgba(10,8,30,.45), 0 16px 30px rgba(0,0,0,.4); }
-  .home-btn:focus-visible { outline-offset: 8px; }
-  .home-btn svg { width: 100%; height: 100%; display: block; }
-  .home-tag { left: 360px; top: 118px; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; padding: 7px 13px 5px; border-radius: 8px; pointer-events: none; }
-  .home-tag .dot { position: absolute; left: 50%; top: -6px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--pink); box-shadow: inset -2px -2px 0 rgba(0,0,0,.2), 0 2px 2px rgba(0,0,0,.3); }
-  .home-tag .k { font-size: 9.5px; font-weight: 900; letter-spacing: 0.12em; color: var(--card-muted); }
-  .home-tag .n { font-family: var(--display); font-size: 15px; }
-  .home-chip { left: 214px; top: 350px; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 999px; box-shadow: 0 3px 0 rgba(10,8,30,.4), 0 8px 14px rgba(0,0,0,.3); pointer-events: none; }
-  .home-chip svg { flex: none; }
-  .home-chip .v { font-family: var(--display); font-size: 19px; color: var(--tone-ink); }
-  .home-chip .of { font-size: 11px; font-weight: 800; color: var(--card-muted); }
-  .home-label { left: 360px; top: 424px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; line-height: 1.3; pointer-events: none; white-space: nowrap; }
-  .home-label .n { font-family: var(--display); font-size: 15px; color: var(--card); }
-  .home-label .w { font-size: 12px; font-weight: 800; color: var(--accent); }
-
-  .planet { position: absolute; padding: 0; border: 5px solid #fffaf0; border-radius: 50%; background: none; cursor: pointer; box-shadow: 0 4px 0 rgba(10,8,30,.45), 0 10px 18px rgba(0,0,0,.35); }
-  .planet:focus-visible { outline-offset: 8px; border-radius: 50%; }
-  .planet svg { width: 100%; height: 100%; display: block; }
-  .ping { position: absolute; inset: -6px; border-radius: 50%; border: 2.5px solid var(--accent); animation: ping 2.2s ease-out infinite; }
-  .sel-ring { position: absolute; inset: -9px; border-radius: 50%; border: 2px dashed var(--card); }
-  .plabel { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 7px; padding: 4px 11px 4px 8px; border-radius: 8px; box-shadow: 0 2px 0 rgba(10,8,30,.4); white-space: nowrap; pointer-events: none; }
+  /* Our planet sits at the centre of the stage; a skin sets its size. */
+  .home-btn { left: 360px; top: 300px; translate: -50% -50%; padding: 0; border-style: solid; border-radius: 50%; cursor: pointer; }
+  .planet { position: absolute; padding: 0; border-style: solid; border-radius: 50%; cursor: pointer; }
+  .home-btn svg, .planet > svg { display: block; width: 100%; height: 100%; clip-path: circle(50%); }
+  .planet .ping, .planet .sel-ring { position: absolute; border-radius: 50%; }
+  .plabel { position: absolute; left: 50%; translate: -50% 0; display: flex; align-items: center; white-space: nowrap; pointer-events: none; }
   .plabel.below { top: calc(100% + 8px); }
   .plabel.above { bottom: calc(100% + 8px); }
-  .plabel .bullet { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dark); }
-  .plabel .cols { display: flex; flex-direction: column; line-height: 1.15; }
-  .plabel .pline { display: inline-flex; align-items: center; gap: 5px; }
-  .plabel .pid { font-family: var(--display); font-size: 14px; }
-  .plabel .rel { font-size: 12px; font-weight: 800; color: var(--card-muted); }
+  .plabel .cols { display: flex; flex-direction: column; }
+  .plabel .pline { display: inline-flex; align-items: center; }
   .plabel.compact .rel { display: none; }
 
   /* --- inspector and legend ---------------------------------------------------------------- */
-  .inspector { min-height: 78px; padding: 11px 20px; display: flex; align-items: center; gap: 14px; transform: rotate(0.3deg); }
+  .inspector { min-height: 78px; display: flex; align-items: center; gap: 14px; }
   .inspector .who { width: 188px; flex: none; display: flex; align-items: center; gap: 10px; }
-  .inspector .name { font-family: var(--display); font-size: 17px; line-height: 1.3; }
-  .inspector .tags { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 12px; font-weight: 800; color: var(--card-muted); }
-  .inspector .tags span { display: inline-flex; align-items: center; gap: 5px; }
-  .inspector .tags b { font-weight: 900; color: var(--card-ink-2); }
-  .inspector .rule { width: 0; height: 44px; flex: none; border-left: 2px dashed var(--line); }
-  .inspector .now { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .inspector .who-text { display: flex; flex-direction: column; min-width: 0; }
+  .inspector .tags { display: flex; flex-wrap: wrap; }
+  .inspector .tags > span { display: inline-flex; align-items: center; }
+  .inspector .rule { flex: none; }
+  .inspector .now { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   /* Single line, always: a count going from one digit to two must not be what
      decides the bar's height.  There is room for it; ellipsis is only a
      backstop for whatever number someday does not fit. */
-  .inspector .now .t { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--display); font-size: 15px; color: var(--tone-ink); }
-  .inspector .terms { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; font-size: 13px; font-weight: 800; }
+  .inspector .now .t { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .inspector .terms { display: flex; flex-wrap: wrap; align-items: center; }
   /* The one dynamic count in this row: give it room to shrink and ellipsize on
      its own, rather than let its own wrapping change the bar's height. The
      terms chips beside it (a fixed "we get / we give") keep their own size. */
-  .inspector .terms .muted { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .inspector .past { width: 128px; flex: none; display: flex; flex-direction: column; line-height: 1.25; }
-  .inspector .past .v { font-family: var(--display); font-size: 18px; }
-  .legend { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 20px; font-size: 12px; font-weight: 700; color: var(--ink-2); }
-  .legend > span { display: inline-flex; align-items: center; gap: 7px; }
-
-  /* --- bundles of resources ------------------------------------------------------------------ */
-  .bundle { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
-  .chip { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-  .chip b { font-weight: 900; font-variant-numeric: tabular-nums; }
-  .chip .name { color: var(--card-muted); }
-  .chip.boxed { padding: 2px 9px; border-radius: 7px; background: #f3e3c6; font-size: 13px; }
+  .inspector .terms .note { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .inspector .past { width: 128px; flex: none; display: flex; flex-direction: column; }
+  .legend { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; }
+  .legend > span { display: inline-flex; align-items: center; }
 
   /* --- cargo hold ------------------------------------------------------------------------------ */
-  .cargo-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0 5px; }
-  .cargo-head .title { font-family: var(--display); font-size: 17px; color: var(--card); }
-  .cargo-head .sub { font-size: 12px; font-weight: 800; color: var(--ink-2); }
-  .res { position: relative; padding: 13px 15px 11px; display: flex; flex-direction: column; gap: 7px; flex: none; }
-  .res[data-resource="water"] { transform: rotate(-0.6deg); } .res[data-resource="water"] .tape { background-color: rgba(255,138,178,0.82); }
-  .res[data-resource="food"] { transform: rotate(0.5deg); } .res[data-resource="food"] .tape { background-color: rgba(120,220,180,0.82); }
-  .res[data-resource="components"] { transform: rotate(-0.4deg); } .res[data-resource="components"] .tape { background-color: rgba(255,214,90,0.85); }
-  .res .tape { left: 50%; top: -9px; width: 74px; transform: translateX(-50%) rotate(-3deg); }
-  .res-head { display: flex; align-items: center; gap: 9px; }
-  .res-head .badge { margin-left: auto; }
-  .res-name { font-family: var(--display); font-size: 18px; }
-  .res-star { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 900; color: #8a5a00; }
-  .amount-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-  .amount { font-family: var(--display); font-size: 32px; line-height: 1; font-variant-numeric: tabular-nums; }
-  .amount-note { font-size: 12.5px; font-weight: 700; color: var(--card-muted); }
-  .net { font-size: 13px; font-weight: 900; color: var(--card-ink-2); }
-  .gauge { display: flex; flex-direction: column; gap: 4px; }
-  .gauge-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-weight: 800; }
-  .gauge-bar { position: relative; height: 14px; border-radius: 999px; background: #eadbbd; overflow: hidden; }
-  .gauge-bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background-image: repeating-linear-gradient(-45deg, var(--tone) 0 6px, color-mix(in srgb, var(--tone) 82%, black) 6px 12px); }
-  .gauge-bar .notch { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(42,36,70,.55); }
-  .gauge-scale { position: relative; height: 13px; font-size: 10.5px; line-height: 13px; font-weight: 800; color: var(--card-muted); }
-  .gauge-scale span { position: absolute; transform: translateX(-50%); }
-  .gauge-scale span:first-child { transform: none; }
-  .gauge-scale span:last-child { transform: none; right: 0; }
+  .cargo-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .res { position: relative; flex: none; display: flex; flex-direction: column; }
+  .res-head { display: flex; align-items: center; }
+  .res-star { display: inline-flex; align-items: center; }
+  .res-body { display: flex; flex-direction: column; }
+  .amount-row { display: flex; align-items: baseline; justify-content: space-between; }
+  .amount-wrap { display: flex; align-items: baseline; }
+  .gauge { display: flex; flex-direction: column; }
+  .gauge-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .gauge-bar { position: relative; overflow: hidden; }
+  .gauge-bar .fill { position: absolute; inset: 0 auto 0 0; }
+  .gauge-bar .notch { position: absolute; top: 0; bottom: 0; }
+  .gauge-scale { position: relative; }
+  .gauge-scale span { position: absolute; translate: -50% 0; }
+  .gauge-scale span:first-child, .gauge-scale span:last-child { translate: none; }
+  .gauge-scale span:last-child { right: 0; }
   .spark-wrap { position: relative; }
-  .spark { display: block; width: 100%; height: 26px; overflow: visible; }
-  .spark-empty { height: 26px; display: flex; align-items: center; color: var(--card-muted); font-size: 12px; font-weight: 700; }
-  .tooltip { position: absolute; pointer-events: none; z-index: 3; background: var(--dark); color: var(--card); border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 800; white-space: nowrap; }
-  .minis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding-top: 7px; border-top: 2px dashed var(--line); line-height: 1.2; }
-  .minis .k { font-size: 10px; font-weight: 900; letter-spacing: 0.08em; color: var(--card-muted); }
-  .minis .v { font-family: var(--display); font-size: 16px; }
-  .alert { padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 900; color: var(--tone-ink); background: var(--tone); }
+  .spark { display: block; width: 100%; overflow: visible; }
+  /* Dots are HTML over the SVG so they stay round when the SVG stretches. */
+  .spark-dot { position: absolute; translate: -50% -50%; border-radius: 50%; pointer-events: none; }
+  .tooltip { position: absolute; z-index: 3; pointer-events: none; white-space: nowrap; }
+  .minis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .mini { display: flex; flex-direction: column; }
 
   /* --- agent panel --------------------------------------------------------------------------- */
-  .agent-head { display: flex; align-items: center; gap: 12px; }
-  .agent section { padding: 15px 18px; display: flex; flex-direction: column; gap: 10px; border-bottom: 2px dashed var(--line); }
-  .agent section:first-child { padding-top: 18px; gap: 12px; }
-  .agent section:last-child { border-bottom: 0; }
+  .agent-head { display: flex; align-items: center; }
+  .agent-id, .now-block { display: flex; flex-direction: column; }
+  .agent section { display: flex; flex-direction: column; }
   /* Highlights give way first, so the tick strip below them always shows. */
-  .agent .grow { flex: 1 1 auto; min-height: 0; overflow-y: auto; gap: 9px; }
+  .agent .grow { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
   .row-between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  .headline { font-family: var(--display); font-size: 21px; line-height: 1.2; }
-  .goal { display: flex; gap: 10px; align-items: center; padding: 7px 10px; border-radius: 12px; background: #f3e3c6; }
-  .goal.buy { background: #fff0b8; }
-  .goal .txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-  .goal .row1 { display: flex; align-items: center; gap: 8px; }
-  .goal .verb { padding: 0 7px; border-radius: 5px; font-size: 11px; font-weight: 900; letter-spacing: 0.08em; background: var(--neutral); color: var(--neutral-ink); }
-  .goal .verb.buy { background: var(--warning); color: var(--warning-ink); }
-  .goal .res-word { font-family: var(--display); font-size: 15px; }
-  .goal .text { font-size: 12.5px; font-weight: 700; color: var(--card-ink-2); }
-  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-  .stat { display: flex; flex-direction: column; line-height: 1.2; }
-  .stat .v { font-family: var(--display); font-size: 27px; color: var(--tone-ink); }
-  .stat .k { font-size: 12px; font-weight: 800; color: var(--card-muted); }
-  .problem { padding: 7px 12px; border-radius: 10px; font-size: 12.5px; font-weight: 800; color: var(--tone-ink); background: var(--tone); }
-  .event { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; }
-  .event .icon { flex: none; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--tone-ink); background: var(--tone); box-shadow: 0 1px 0 rgba(42,36,70,.3); }
-  .event .text { flex: 1; min-width: 0; color: var(--card-ink); }
-  .event .t { font-size: 11px; font-weight: 900; color: var(--card-muted); }
+  .goal { display: flex; align-items: center; }
+  .goal .txt { display: flex; flex-direction: column; min-width: 0; }
+  .goal .row1 { display: flex; align-items: center; }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stat { display: flex; flex-direction: column; }
+  .event { display: flex; align-items: center; }
+  .event .icon { flex: none; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+  .event .text { flex: 1; min-width: 0; }
+  /* The script sizes the bars: up to 22px either side of the baseline. */
   .strip { position: relative; height: 48px; display: flex; gap: 4px; }
-  .strip .base { position: absolute; left: 0; right: 0; top: 23px; height: 2px; background: var(--line); }
-  .strip .col { flex: 1; display: flex; flex-direction: column; align-items: center; }
+  .strip .base { position: absolute; left: 0; right: 0; top: 23px; height: 2px; }
+  .strip .col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
   .strip .up, .strip .down { height: 24px; display: flex; }
   .strip .up { align-items: flex-end; } .strip .down { align-items: flex-start; }
-  .strip .up span, .strip .down span { display: block; width: 10px; max-width: 100%; }
-  .strip .up span { background: var(--food-line); border-radius: 3px 3px 0 0; }
-  .strip .down span { background: #e0485f; border-radius: 0 0 3px 3px; }
-  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 4px; }
+  .strip .up span, .strip .down span { display: block; max-width: 100%; }
+  .swatch { display: inline-block; }
 
   /* --- the full action log ------------------------------------------------------------------- */
-  dialog.log { width: min(780px, calc(100vw - 32px)); max-height: min(82vh, 900px); padding: 0; border: 0; border-radius: 18px; color: var(--card-ink); background: var(--card); display: none; flex-direction: column; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,.5); }
+  dialog.log { width: min(780px, calc(100vw - 32px)); max-height: min(82vh, 900px); padding: 0; border: 0; display: none; flex-direction: column; overflow: hidden; }
   dialog.log[open] { display: flex; }
-  dialog.log::backdrop { background: rgba(20, 16, 46, 0.68); }
-  .log-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px 12px 22px; border-bottom: 2px dashed var(--line); }
-  .log-head .sub { flex: 1; color: var(--card-muted); font-size: 12.5px; font-weight: 800; }
+  .log-head { display: flex; align-items: center; }
+  .log-head .sub { flex: 1; }
   .log-body { flex: 1; min-height: 0; overflow-y: auto; }
-  .tick-head { position: sticky; top: 0; z-index: 1; padding: 8px 22px; display: flex; gap: 10px; align-items: baseline; background: #f3e3c6; border-bottom: 1px solid var(--line); }
-  .tick-head .right { margin-left: auto; color: var(--card-muted); font-size: 12px; font-weight: 800; }
-  .act { padding: 12px 22px; display: flex; gap: 16px; align-items: flex-start; border-bottom: 1px dashed var(--line); }
+  .tick-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: baseline; }
+  .tick-head .right { margin-left: auto; }
+  .act { display: flex; align-items: flex-start; }
   .act .state { width: 88px; flex: none; }
-  .act .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
-  .act .line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
-  .act .kind { font-size: 11px; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 7px; border-radius: 6px; background: var(--dark); color: var(--card); }
-  .act .who { font-weight: 900; }
-  .act .why { color: var(--card-ink-2); font-size: 13px; font-weight: 700; }
-  .act .detail { font-size: 12px; font-weight: 800; color: var(--tone-ink); overflow-wrap: anywhere; }
-  .act .score { width: 52px; flex: none; text-align: right; font-family: var(--display); font-variant-numeric: tabular-nums; }
-  .rid { color: var(--card-muted); font-size: 11px; font-weight: 700; overflow-wrap: anywhere; }
-  .arrow { flex: none; color: var(--card-muted); }
+  .act .what { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .act .line { display: flex; flex-wrap: wrap; align-items: center; }
+  .act .score { width: 52px; flex: none; text-align: right; font-variant-numeric: tabular-nums; }
+  .act .detail, .rid { overflow-wrap: anywhere; }
+  .arrow { flex: none; }
 
-  .waiting { text-align: center; padding: 120px 16px; color: var(--ink-2); }
-  .waiting b { display: block; color: var(--card); font-family: var(--display); font-size: 22px; margin-bottom: 8px; }
-  footer { padding: 0 24px 12px; color: var(--muted); font-size: 12px; font-weight: 700; }
-
+  /* Skins animate with these; none of it runs for a reader who asked for less motion. */
   @keyframes fly { 0% { offset-distance: 0%; opacity: 0; } 12% { opacity: 1; } 85% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
   @keyframes ping { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(1.55); opacity: 0; } }
   @keyframes flow { to { stroke-dashoffset: -20; } }
   @keyframes alarm { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
   @keyframes twinkle { from { opacity: 0.45; } to { opacity: 1; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) {
-    .stagestars .tw, .lanes .flow, .ping, .home-alarm { animation: none; }
+    .stage *, .stage *::before, .stage *::after { animation: none !important; }
   }
 </style>
+<script>
+"use strict";
+// Skins register here as their scripts load, before anything is drawn; the
+// first one registered is the default.
+const SKINS = new Map();
+function registerSkin(skin) { SKINS.set(skin.id, skin); }
+const SKIN_KEY = "bazaar.skin";
+</script>
+<script src="skins/scrapbook.js"></script>
+<script src="skins/tycoon.js"></script>
+<script>
+// Chosen before first paint, so a remembered skin never flashes the default.
+// ?skin=<id> wins over the remembered one, so a link can name a skin.
+(() => {
+  let remembered = null;
+  try { remembered = localStorage.getItem(SKIN_KEY); } catch (e) { /* storage blocked: use the default */ }
+  const asked = new URLSearchParams(location.search).get("skin");
+  const id = [asked, remembered].find((x) => x && SKINS.has(x)) || SKINS.keys().next().value;
+  document.documentElement.dataset.skin = id;
+})();
+</script>
 </head>
 <body>
 
-<svg width="0" height="0" style="position: absolute" aria-hidden="true">
-<defs>
-<symbol id="c-ocean" viewBox="0 0 100 100">
-<path d="M8 16 C22 8 36 12 46 7" fill="none" stroke="#8fcbff" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
-<path d="M16 30 C22 17 42 15 50 23 C58 31 52 42 42 44 C32 46 30 57 21 55 C11 53 11 40 16 30 Z" fill="#a8daff" stroke="#2f7fcf" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
-<path d="M23 33 C27 25 39 23 43 29 C46 34 39 37 33 38 C27 39 21 41 23 33 Z" fill="none" stroke="#6fb4f0" vector-effect="non-scaling-stroke"></path>
-<path d="M57 58 C65 49 82 53 87 63 C91 73 81 85 70 82 C61 80 66 72 57 70 C51 68 51 62 57 58 Z" fill="#a8daff" stroke="#2f7fcf" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
-<path d="M63 62 C69 58 78 61 80 67 C82 73 76 77 70 75 C66 74 68 69 63 67 Z" fill="none" stroke="#6fb4f0" vector-effect="non-scaling-stroke"></path>
-<ellipse cx="32" cy="77" rx="8" ry="4.5" fill="#a8daff" stroke="#2f7fcf" vector-effect="non-scaling-stroke"></ellipse>
-<path d="M68 16 C76 19 82 25 85 33" fill="none" stroke="#8fcbff" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
-<path d="M-10 -10 H110 V110 H-10 Z M-14 40 A54 54 0 1 0 94 40 A54 54 0 1 0 -14 40 Z" fill="#1d3f7a" fill-opacity="0.2" fill-rule="evenodd"></path>
-<ellipse cx="30" cy="21" rx="10" ry="5" transform="rotate(-32 30 21)" fill="#ffffff" fill-opacity="0.8"></ellipse>
-</symbol>
-<symbol id="c-farm" viewBox="0 0 100 100">
-<path d="M-5 58 C14 50 30 66 50 58 S86 48 105 56" fill="none" stroke="#2f9e5e" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
-<path d="M20 24 C26 17 37 19 38 27 C39 35 29 38 24 34 C19 31 16 28 20 24 Z" fill="#cbf6d8" stroke="#3a9e63" vector-effect="non-scaling-stroke"></path>
-<path d="M55 28 C60 23 69 26 69 33 C69 40 60 42 57 38 C54 35 52 31 55 28 Z" fill="#cbf6d8" stroke="#3a9e63" vector-effect="non-scaling-stroke"></path>
-<path d="M38 42 C42 39 49 41 49 46 C49 51 43 52 40 49 C37 47 36 44 38 42 Z" fill="#cbf6d8" stroke="#3a9e63" vector-effect="non-scaling-stroke"></path>
-<path d="M26 76 C31 71 40 72 41 78 C42 84 34 87 30 84 C26 82 23 79 26 76 Z" fill="#cbf6d8" stroke="#3a9e63" vector-effect="non-scaling-stroke"></path>
-<path d="M64 74 C69 69 78 71 78 77 C78 83 70 85 66 81 C63 79 62 76 64 74 Z" fill="#cbf6d8" stroke="#3a9e63" vector-effect="non-scaling-stroke"></path>
-<circle cx="80" cy="44" r="4.5" fill="#cbf6d8" stroke="#3a9e63" vector-effect="non-scaling-stroke"></circle>
-<path d="M-10 -10 H110 V110 H-10 Z M-14 40 A54 54 0 1 0 94 40 A54 54 0 1 0 -14 40 Z" fill="#1d5a3a" fill-opacity="0.2" fill-rule="evenodd"></path>
-<ellipse cx="30" cy="21" rx="10" ry="5" transform="rotate(-32 30 21)" fill="#ffffff" fill-opacity="0.8"></ellipse>
-</symbol>
-<symbol id="c-forge" viewBox="0 0 100 100">
-<path d="M-5 28 C15 22 35 34 55 28 S90 22 105 28 L105 40 C85 46 70 36 50 42 S15 46 -5 40 Z" fill="#f07c2e" stroke="#c95a1a" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
-<path d="M-5 62 C20 56 35 68 55 62 S88 56 105 62 L105 72 C85 78 65 68 45 74 S10 76 -5 72 Z" fill="#f07c2e" stroke="#c95a1a" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
-<path d="M10 16 C24 12 40 18 56 14" fill="none" stroke="#ffe3c0" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
-<path d="M28 51 C42 47 60 53 80 49" fill="none" stroke="#ffe3c0" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
-<path d="M18 86 C32 82 48 88 66 84" fill="none" stroke="#ffe3c0" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
-<path d="M-10 -10 H110 V110 H-10 Z M-14 40 A54 54 0 1 0 94 40 A54 54 0 1 0 -14 40 Z" fill="#7a2e0a" fill-opacity="0.18" fill-rule="evenodd"></path>
-<ellipse cx="30" cy="21" rx="10" ry="5" transform="rotate(-32 30 21)" fill="#ffffff" fill-opacity="0.75"></ellipse>
-</symbol>
-<symbol id="c-rock" viewBox="0 0 100 100">
-<circle cx="30" cy="34" r="10" fill="#8f84c4" stroke="#6d62a3" vector-effect="non-scaling-stroke"></circle>
-<circle cx="66" cy="24" r="6" fill="#8f84c4" stroke="#6d62a3" vector-effect="non-scaling-stroke"></circle>
-<circle cx="58" cy="60" r="13" fill="#8f84c4" stroke="#6d62a3" vector-effect="non-scaling-stroke"></circle>
-<circle cx="24" cy="70" r="6.5" fill="#8f84c4" stroke="#6d62a3" vector-effect="non-scaling-stroke"></circle>
-<circle cx="83" cy="50" r="5" fill="#8f84c4" stroke="#6d62a3" vector-effect="non-scaling-stroke"></circle>
-<circle cx="42" cy="86" r="5" fill="#8f84c4" stroke="#6d62a3" vector-effect="non-scaling-stroke"></circle>
-<path d="M-10 -10 H110 V110 H-10 Z M-14 40 A54 54 0 1 0 94 40 A54 54 0 1 0 -14 40 Z" fill="#2a2446" fill-opacity="0.18" fill-rule="evenodd"></path>
-<ellipse cx="30" cy="17" rx="8" ry="4" transform="rotate(-32 30 17)" fill="#ffffff" fill-opacity="0.7"></ellipse>
-</symbol>
-<symbol id="c-star" viewBox="-12 -12 24 24">
-<path d="M0 -10 L3 -3.4 L10 -3.1 L4.6 1.7 L6.4 8.8 L0 4.8 L-6.4 8.8 L-4.6 1.7 L-10 -3.1 L-3 -3.4 Z" stroke-width="2.2" stroke-linejoin="round"></path>
-</symbol>
-<symbol id="c-rocket" viewBox="0 0 34 20">
-<path d="M5.5 10 L0 5.5 L1.8 10 L0 14.5 Z" fill="#ffc83a"></path>
-<path d="M9 5 L4.5 1 L4.5 7 Z" fill="#ff7aa5"></path>
-<path d="M9 15 L4.5 19 L4.5 13 Z" fill="#ff7aa5"></path>
-<path d="M6 4.5 H21 C27 4.5 31 7.5 33 10 C31 12.5 27 15.5 21 15.5 H6 C5 15.5 4.5 15 4.5 14 V6 C4.5 5 5 4.5 6 4.5 Z" fill="#fdf3e1" stroke="#2a2446" stroke-width="1.3" stroke-linejoin="round"></path>
-<rect x="8.5" y="7" width="8" height="6" rx="1.8"></rect>
-<circle cx="23.5" cy="10" r="2.6" fill="#9fd4ff" stroke="#2a2446" stroke-width="1.1"></circle>
-</symbol>
-</defs>
-</svg>
-
-<header class="topbar"><div class="bar" id="bar"></div></header>
+<header class="topbar"><div class="bar">
+  <div class="bar-main" id="bar"></div>
+  <label class="skin-picker" id="skin-picker" title="Dashboard skin"></label>
+</div></header>
 <div class="waiting" id="waiting"><b>Waiting for the first state</b>The client is connecting, or the game has not sent a snapshot yet.</div>
 <main class="layout" id="main" hidden>
   <section class="cargo" id="cargo" aria-label="Cargo hold"></section>
@@ -427,56 +259,28 @@
     <div id="verdict"></div>
     <div class="map" id="map">
       <div class="stage" id="stage">
-        <svg class="stagestars" viewBox="0 0 720 600" aria-hidden="true">
-          <g class="tw"><use href="#c-star" x="26" y="44" width="22" height="22" fill="#ffd35a" stroke="#ffd35a" transform="rotate(-12 40 60)"></use></g>
-          <use href="#c-star" x="556" y="34" width="16" height="16" fill="#ff8ab2" stroke="#ff8ab2"></use>
-          <g class="tw"><use href="#c-star" x="672" y="452" width="18" height="18" fill="#9fd4ff" stroke="#9fd4ff"></use></g>
-          <use href="#c-star" x="26" y="466" width="15" height="15" fill="#fdf3e1" stroke="#fdf3e1"></use>
-          <g class="tw"><use href="#c-star" x="118" y="540" width="16" height="16" fill="#ff8ab2" stroke="#ff8ab2"></use></g>
-          <use href="#c-star" x="160" y="270" width="13" height="13" fill="#ffd35a" stroke="#ffd35a"></use>
-          <circle cx="156" cy="136" r="2.6" fill="#fdf3e1" fill-opacity="0.5"></circle>
-          <circle cx="676" cy="108" r="2.2" fill="#fdf3e1" fill-opacity="0.55"></circle>
-          <circle cx="590" cy="546" r="2.6" fill="#fdf3e1" fill-opacity="0.4"></circle>
-          <circle cx="540" cy="296" r="2.2" fill="#fdf3e1" fill-opacity="0.5"></circle>
-        </svg>
+        <div class="stage-layer" id="decor-back" aria-hidden="true"></div>
         <svg class="lanes" viewBox="0 0 720 600" aria-hidden="true">
-          <ellipse class="orbit" cx="360" cy="300" rx="346" ry="276" stroke="rgba(253,243,225,0.07)"></ellipse>
-          <ellipse class="orbit" cx="360" cy="300" rx="300" ry="236" stroke="rgba(253,243,225,0.25)" stroke-dasharray="2 7" stroke-linecap="round"></ellipse>
-          <ellipse class="orbit" cx="360" cy="300" rx="214" ry="168" stroke="rgba(253,243,225,0.06)"></ellipse>
-          <path id="lane-trade" fill="none" stroke="rgba(253,243,225,0.45)" stroke-width="2" stroke-linecap="round"></path>
-          <path id="lane-out" fill="none" stroke="rgba(253,243,225,0.85)" stroke-width="1.6" stroke-dasharray="6 6"></path>
-          <path id="lane-heads" fill="rgba(253,243,225,0.9)"></path>
-          <path id="lane-in" class="flow" fill="none" stroke="#9fd4ff" stroke-width="3" stroke-linecap="round" stroke-dasharray="0.5 7.5"></path>
+          <path id="lane-trade" class="lane-trade"></path>
+          <path id="lane-out" class="lane-out"></path>
+          <path id="lane-heads" class="lane-heads"></path>
+          <path id="lane-in" class="lane-in"></path>
         </svg>
         <div class="ships" id="ships" aria-hidden="true"></div>
-        <div class="home-halo" id="home-halo"></div>
-        <div class="home-alarm" id="home-alarm" hidden></div>
-        <div class="home-sel" id="home-sel" hidden></div>
-        <svg class="home-ring" viewBox="0 0 280 280" aria-hidden="true">
-          <circle cx="140" cy="140" r="134" fill="none" stroke="rgba(253,243,225,0.35)" stroke-dasharray="1 9.5"></circle>
-          <circle cx="140" cy="140" r="124" fill="none" stroke="rgba(253,243,225,0.14)" stroke-width="7"></circle>
-          <circle id="home-arc" class="arc good" cx="140" cy="140" r="124" fill="none" stroke-width="7" stroke-linecap="round" stroke-dasharray="0 779.1" transform="rotate(-90 140 140)"></circle>
-        </svg>
+        <div class="stage-layer" id="decor-mid" aria-hidden="true"></div>
         <button type="button" class="home-btn" id="home-btn" aria-pressed="false"></button>
-        <div class="home-tag card scaled-text" id="home-tag"><span class="dot" aria-hidden="true"></span><span class="k">YOU ARE HERE</span><span class="n" id="home-name-tag"></span></div>
-        <div class="home-chip card scaled-text good" id="home-chip"></div>
-        <div class="home-label scaled-text"><span class="n" id="home-name"></span><span class="w" id="home-world"></span></div>
+        <div class="stage-layer" id="decor-front"></div>
         <div class="planets" id="planets"></div>
       </div>
     </div>
     <div class="inspector card" id="inspector"></div>
-    <div class="legend">
-      <span><svg width="26" height="8" viewBox="0 0 26 8" aria-hidden="true"><line x1="1" y1="4" x2="25" y2="4" stroke="#fdf3e1" stroke-width="2.5" stroke-dasharray="5 4" stroke-linecap="round"></line></svg>our offer</span>
-      <span><svg width="26" height="8" viewBox="0 0 26 8" aria-hidden="true"><line x1="2" y1="4" x2="24" y2="4" stroke="#9fd4ff" stroke-width="4.5" stroke-dasharray="0.5 7" stroke-linecap="round"></line></svg>offer for us</span>
-      <span><svg width="24" height="14" viewBox="0 0 34 20" aria-hidden="true" style="filter: drop-shadow(1px 0 0 #fffaf0) drop-shadow(-1px 0 0 #fffaf0) drop-shadow(0 1px 0 #fffaf0) drop-shadow(0 -1px 0 #fffaf0)"><use href="#c-rocket" width="34" height="20" fill="#4cb86a"></use></svg>rocket = trade just settled</span>
-      <span><span class="orbicon ocean" style="width:14px;height:14px;border-width:2px"></span><span class="orbicon farm" style="width:14px;height:14px;border-width:2px"></span><span class="orbicon forge" style="width:14px;height:14px;border-width:2px"></span>colour = what a planet sells</span>
-    </div>
+    <div class="legend" id="legend"></div>
   </section>
   <aside class="agent card" id="agent" aria-label="Agent"></aside>
 </main>
 <dialog class="log" id="log" aria-labelledby="log-title">
   <div class="log-head">
-    <h2 id="log-title" style="font-size:18px">Full action log</h2>
+    <h2 id="log-title" class="log-title">Full action log</h2>
     <span class="sub" id="log-sub"></span>
     <button type="button" class="btn" id="log-close">Close</button>
   </div>
@@ -500,13 +304,16 @@ let firstBatch = true;
 let planetKey = "";
 let planetEls = new Map();
 let layout = new Map();
+let skin = null;       // the skin on screen, with defaults filled in
+let stageDecor = null; // what that skin drew around our planet
 
 const RESOURCES = ["water", "food", "components"];
 const KIND = { water: "ocean", food: "farm", components: "forge" };
+const BODY = { ocean: "water", farm: "food", forge: "components", rock: "rock" };  // a planet's colour token
 const WORLD = { water: "water world", food: "farm world", components: "forge world" };
 // The map is drawn on a fixed stage and scaled to fit; every coordinate below is on it.
-const STAGE = { w: 720, h: 600, cx: 360, cy: 300, rx: 300, ry: 236, laneR: 136, ringR: 124 };
-const RING = 2 * Math.PI * STAGE.ringR;
+const STAGE = { w: 720, h: 600, cx: 360, cy: 300, rx: 300, ry: 236 };
+const HOME = { x: STAGE.cx, y: STAGE.cy };
 const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)");
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -527,7 +334,6 @@ const LEVEL = {
 const VERDICT_ICON = { good: "✓", warning: "!", critical: "✕", neutral: "■" };
 const PHASE_TONE = { READY: "neutral", RUNNING: "good", PAUSED: "warning", FINISHED: "neutral", ABORTED: "critical" };
 const EVENT_TONE = { trade: "good", info: "neutral", warning: "warning", alert: "critical", failure: "critical" };
-const URGENCY_TONE = { warning: "warning", critical: "critical" };
 
 // --- DOM helpers: every piece of data goes in as text, never as markup -------------------
 function h(tag, attrs, ...children) {
@@ -556,11 +362,20 @@ function append(el, children) {
     el.append(child instanceof Node ? child : document.createTextNode(String(child)));
   }
 }
+// The one exception to the rule above: a skin's fixed decoration, written as
+// markup in its own file.  Never pass it anything that came from the game.
+function markup(html) {
+  const t = document.createElement("template");
+  t.innerHTML = html.trim();
+  return t.content.firstElementChild;
+}
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Number(n).toLocaleString();
 const f1 = (n) => n.toFixed(1);
 const plural = (n, word) => `${fmt(n)} ${word}${n === 1 ? "" : "s"}`;
 const ticksLeft = (n) => (n <= 0 ? "this tick" : plural(n, "tick"));
+// Every skin draws its own ocean, so symbols are namespaced by skin.
+const sym = (name) => `#${skin.id}-${name}`;
 // A short, stable wobble per station ID, so planets read as hand-placed but never jitter.
 function wobble(id, spread = 9) {
   let hash = 0;
@@ -571,13 +386,20 @@ function wobble(id, spread = 9) {
 function badge(tone, icon, label, title) {
   return h("span", { class: `badge ${tone}`, title }, icon, " ", label);
 }
+// A number with a span per digit, so a skin can put each on its own tile.
+function digits(n) {
+  const text = fmt(n);
+  return h("span", { class: "digits" },
+    h("span", { class: "sr-only" }, text),
+    h("span", { class: "tiles", "aria-hidden": "true" }, [...text].map((c) => (/\d/.test(c) ? h("span", { class: "digit" }, c) : c))));
+}
 // A bordered circular sticker of a planet symbol, at any size.
 function orbIcon(kind, size, extraClass) {
   const border = Math.max(2.2, size * 0.09).toFixed(1);
   const stroke = Math.max(1.1, size * 0.037).toFixed(2);
   return h("span", { class: `orbicon ${kind}${extraClass ? " " + extraClass : ""}`, style: `width:${size}px;height:${size}px;border-width:${border}px` },
     s("svg", { viewBox: "0 0 100 100", width: "100%", height: "100%" },
-      s("use", { href: `#c-${kind}`, width: 100, height: 100, style: `stroke-width:${stroke}px` })));
+      s("use", { href: sym(kind), width: 100, height: 100, style: `stroke-width:${stroke}px` })));
 }
 function station(id) {
   const name = data && data.header.names[id];
@@ -603,65 +425,106 @@ function arrow() {
                     "stroke-linecap": "round", "stroke-linejoin": "round", class: "arrow", "aria-hidden": "true" },
     s("path", { d: "M3 8h10M9 4l4 4-4 4" }));
 }
+// The skin's rocket, painted in a resource's colour, or its plain colour for none.
 function shipIcon(resource, width = 24) {
-  const fill = { water: "#3d9be9", food: "#4cb86a", components: "#f08a3c" }[resource] || "#c9c3e6";
-  return s("svg", { width, height: Math.round((width * 20) / 34), viewBox: "0 0 34 20", "aria-hidden": "true" },
-    s("use", { href: "#c-rocket", width: 34, height: 20, fill }));
+  const [w, rh] = skin.rocket;
+  return s("svg", { width, height: Math.round((width * rh) / w), viewBox: `0 0 ${w} ${rh}`, "aria-hidden": "true" },
+    s("use", { href: sym("rocket"), width: w, height: rh, style: `fill:var(--${resource ? `${resource}-mark` : "ship"})` }));
 }
-function heartIcon(size = 16) {
-  return s("svg", { width: size, height: size, viewBox: "0 0 24 24", "aria-hidden": "true" },
-    s("path", { d: "M12 21 C5 15 2 11.5 2 8 C2 5 4.5 3 7.2 3 C9.2 3 10.8 4.2 12 6 C13.2 4.2 14.8 3 16.8 3 C19.5 3 22 5 22 8 C22 11.5 19 15 12 21 Z", fill: "#e0485f" }));
+
+// --- skins ---------------------------------------------------------------------------------
+// A skin brings a stylesheet and its own symbols (ocean, farm, forge, rock and
+// rocket, as <symbol id="<skin>-<name>">).  Anything else it leaves out falls
+// back to these.  Every hook returns fresh nodes; nothing here is cached
+// across a switch, so a hook never needs to clean up after itself.
+const SKIN_DEFAULTS = {
+  rocket: [34, 20],                                     // the rocket symbol's viewBox size
+  geometry: { laneR: 136, planet: { far: 44, near: 52 }, ship: 26 },
+  wordmark: () => h("span", { class: "wordmark" }, "Bazaar"),
+  tick: (hd) => h("span", { class: "nowrap" }, `Tick ${fmt(hd.tick)} of ${fmt(hd.duration_ticks)}`),
+  track: (pct) => [h("span", { class: "fill", style: `width:${pct}%` }), h("span", { class: "marker", style: `left:${pct}%` }, shipIcon(null, 30))],
+  decor: (where) => null,                               // stickers for a card: "verdict" or "reserve"
+  levelBadge: (level) => badge(level.tone, level.icon, level.label),
+  verdictMark: (tone) => h("span", { class: "mark", "aria-hidden": "true" }, VERDICT_ICON[tone]),
+  mascot: () => null,
+  // Decoration round our planet, drawn once per switch; ``update`` runs on every render.
+  stage: () => ({ back: [], mid: [], front: [], update: (home) => {} }),
+  eventIcons: {},                                       // per highlight kind, over EVENT_ICONS
+};
+
+function skinFor(id) {
+  const def = SKINS.get(id) || SKINS.values().next().value;
+  return { ...SKIN_DEFAULTS, ...def, geometry: { ...SKIN_DEFAULTS.geometry, ...def.geometry } };
+}
+
+// Everything that holds one of the old skin's symbols or shapes is rebuilt;
+// the data on screen stays, so switching never waits for the next state.
+function applySkin(id) {
+  skin = skinFor(id);
+  document.documentElement.dataset.skin = skin.id;
+  stageDecor = skin.stage();
+  $("decor-back").replaceChildren(...stageDecor.back);
+  $("decor-mid").replaceChildren(...stageDecor.mid);
+  $("decor-front").replaceChildren(...stageDecor.front);
+  $("ships").replaceChildren();
+  planetKey = "";
+  agentEls = null;
+  $("skin-select").value = skin.id;
+  renderLegend();
+  render();
+}
+
+function chooseSkin(id) {
+  applySkin(id);
+  try { localStorage.setItem(SKIN_KEY, skin.id); } catch (e) { /* not remembered, still applied */ }
+  const url = new URL(location.href);
+  if (url.searchParams.has("skin")) {
+    url.searchParams.set("skin", skin.id);
+    history.replaceState(null, "", url);
+  }
+}
+
+// Built once and never redrawn, so a choice is never lost to a re-render.  A
+// palette in the skin's own resource colours marks what the menu is for.
+function buildPicker() {
+  const select = h("select", { id: "skin-select", "aria-label": "Dashboard skin" },
+    [...SKINS.values()].map((def) => h("option", { value: def.id, title: def.title || def.label }, def.label)));
+  select.addEventListener("change", () => chooseSkin(select.value));
+  $("skin-picker").replaceChildren(
+    s("svg", { class: "palette", width: 18, height: 18, viewBox: "0 0 24 24", "aria-hidden": "true" },
+      s("path", { d: "M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4-4-7.4-9-7.4Z",
+                  fill: "none", stroke: "currentColor", "stroke-width": 1.8, "stroke-linejoin": "round" }),
+      s("circle", { cx: 7.5, cy: 11.5, r: 1.7, style: "fill:var(--water)" }),
+      s("circle", { cx: 10, cy: 7, r: 1.7, style: "fill:var(--food)" }),
+      s("circle", { cx: 15, cy: 7.3, r: 1.7, style: "fill:var(--components)" })),
+    select);
 }
 
 // --- header ----------------------------------------------------------------------------
-function logoMark() {
-  return s("svg", { width: 42, height: 34, viewBox: "0 0 46 38", "aria-hidden": "true", style: "transform: rotate(-8deg)" },
-    s("g", { transform: "translate(23 20) rotate(-16)" },
-      s("ellipse", { cx: 0, cy: 0, rx: 20, ry: 6, fill: "none", stroke: "#fffaf0", "stroke-width": 7 }),
-      s("ellipse", { cx: 0, cy: 0, rx: 20, ry: 6, fill: "none", stroke: "#9fd4ff", "stroke-width": 3 })),
-    s("circle", { cx: 23, cy: 19, r: 13, fill: "#ff8ab2", stroke: "#fffaf0", "stroke-width": 3.5 }),
-    s("path", { d: "M12 16 C17 14 27 18 34 15", fill: "none", stroke: "#e0578c", "stroke-width": 2.2, "stroke-linecap": "round" }),
-    s("path", { d: "M13 23 C18 21 26 25 32 22", fill: "none", stroke: "#ffc2d8", "stroke-width": 2.2, "stroke-linecap": "round" }),
-    s("g", { transform: "translate(23 20) rotate(-16)" },
-      s("path", { d: "M-20 0 A20 6 0 0 0 20 0", fill: "none", stroke: "#fffaf0", "stroke-width": 7, "stroke-linecap": "round" }),
-      s("path", { d: "M-20 0 A20 6 0 0 0 20 0", fill: "none", stroke: "#9fd4ff", "stroke-width": 3, "stroke-linecap": "round" })));
-}
-function flagMark() {
-  return s("svg", { width: 16, height: 23, viewBox: "0 0 18 26", "aria-hidden": "true" },
-    s("path", { d: "M3 25 L3 3", stroke: "#fdf3e1", "stroke-width": 2.2, "stroke-linecap": "round" }),
-    s("rect", { x: 3, y: 3, width: 13, height: 10, fill: "#fdf3e1" }),
-    s("rect", { x: 3, y: 3, width: 4.3, height: 5, fill: "#2a2446" }),
-    s("rect", { x: 11.6, y: 3, width: 4.4, height: 5, fill: "#2a2446" }),
-    s("rect", { x: 7.3, y: 8, width: 4.3, height: 5, fill: "#2a2446" }));
-}
-
 function renderBar() {
   const bar = $("bar");
   const hd = data && data.header;
+  const logo = h("div", { class: "us logo" }, skin.wordmark());
   if (!hd) {
-    bar.replaceChildren(
-      h("div", { class: "us" }, logoMark(), h("span", { class: "wordmark" }, "Bazaar")),
-      h("span", { style: "flex:1" }), h("span", { id: "paused-pill" }), h("span", { id: "conn" }));
+    bar.replaceChildren(logo, h("span", { style: "flex:1" }), h("span", { id: "paused-pill" }), h("span", { id: "conn" }));
     updateLive();
     return;
   }
   const pct = hd.duration_ticks ? Math.min(100, (100 * hd.tick) / hd.duration_ticks) : 0;
   const phase = hd.phase.charAt(0) + hd.phase.slice(1).toLowerCase();
   bar.replaceChildren(
-    h("div", { class: "us" }, logoMark(), h("span", { class: "wordmark" }, "Bazaar")),
+    logo,
     h("span", { class: "divider", "aria-hidden": "true" }),
     h("div", { class: "us" },
       orbIcon(KIND[hd.specialty] || "rock", 34),
       h("span", { class: "id" }, station(hd.station)),
-      h("span", { class: "muted", style: "font-size:13px" }, `${WORLD[hd.specialty] || hd.specialty} · makes ${fmt(hd.specialty_made)} a tick`)),
+      h("span", { class: "muted world" }, `${WORLD[hd.specialty] || hd.specialty} · makes ${fmt(hd.specialty_made)} a tick`)),
     badge(PHASE_TONE[hd.phase] || "neutral", "●", phase),
     h("div", { class: "progress" },
-      h("span", { class: "nowrap" }, "Tick ", h("b", { class: "num display", style: "font-size:19px" }, fmt(hd.tick)), ` of ${fmt(hd.duration_ticks)}`),
+      skin.tick(hd),
       h("div", { class: "track", role: "progressbar", "aria-valuenow": hd.tick, "aria-valuemax": hd.duration_ticks, "aria-label": "Run progress" },
-        h("span", { class: "fill", style: `width:${pct}%` }),
-        h("span", { class: "marker", style: `left:${pct}%` }, shipIcon("water", 30)),
-        h("span", { class: "flag" }, flagMark())),
-      h("span", { class: "muted nowrap" }, "next tick ", h("b", { id: "countdown", class: "num" }, "—"))),
+        skin.track(pct)),
+      h("span", { class: "muted nowrap next" }, "next tick ", h("b", { id: "countdown", class: "num" }, "—"))),
     h("span", { class: "verline num", title: `snapshot ${hd.snapshot_sequence}` }, `v${fmt(hd.world_version)}`),
     h("span", { id: "paused-pill" }),
     h("span", { id: "conn" }),
@@ -697,20 +560,11 @@ function updateLive() {
 }
 
 // --- verdict ---------------------------------------------------------------------------------
-function verdictIcon(tone) {
-  if (tone === "warning") return s("svg", { width: 18, height: 18, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "stroke-width": 1.8, "stroke-linejoin": "round", "stroke-linecap": "round", "aria-hidden": "true" },
-    s("path", { d: "M8 2 L14.5 13.5 L1.5 13.5 Z" }), s("path", { d: "M8 6.5 L8 9.4 M8 11.6 L8 11.7" }));
-  if (tone === "critical") return s("svg", { width: 18, height: 18, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "stroke-width": 2.2, "stroke-linecap": "round", "aria-hidden": "true" },
-    s("path", { d: "M4.5 4.5 L11.5 11.5 M11.5 4.5 L4.5 11.5" }));
-  if (tone === "good") return s("svg", { width: 18, height: 18, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" },
-    s("path", { d: "M2.5 8.5 L6.2 12 L13.5 4" }));
-  return s("svg", { width: 18, height: 18, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "stroke-width": 1.8, "aria-hidden": "true" }, s("circle", { cx: 8, cy: 8, r: 5.5 }));
-}
 function renderVerdict() {
   const v = data.verdict;
   $("verdict").replaceChildren(h("div", { class: `verdict card ${v.tone}`, role: "status" },
-    h("span", { class: "tape", style: "right:26px; top:-8px; width:64px; transform:rotate(4deg); background-color:rgba(255,138,178,0.82)" }),
-    h("span", { class: "mark", "aria-hidden": "true" }, verdictIcon(v.tone)),
+    skin.decor("verdict"),
+    skin.verdictMark(v.tone),
     h("div", { class: "words" },
       h("span", { class: "title" }, v.title),
       v.body ? h("span", { class: "body" }, v.body) : null)));
@@ -731,17 +585,17 @@ function arrowHead(c) {
   const bx = c.ex - ux * 9, by = c.ey - uy * 9;
   return `M${f1(c.ex)} ${f1(c.ey)} L${f1(bx - uy * 4.5)} ${f1(by + ux * 4.5)} L${f1(bx + uy * 4.5)} ${f1(by - ux * 4.5)} Z`;
 }
-const HOME = { x: STAGE.cx, y: STAGE.cy };
 
 // Stations sit evenly round one orbit, offset so none hides straight above or
 // below us.  The far half is drawn a little smaller; a crowded orbit shrinks.
 function stationLayout(stations) {
   const n = stations.length;
+  const size = skin.geometry.planet;
   const shrink = Math.min(1, Math.max(0.6, 8 / Math.max(n, 1)));
   const out = new Map();
   stations.forEach((st, k) => {
     const a = ((-90 + 180 / n + (360 * k) / n) * Math.PI) / 180;
-    const dia = Math.round((Math.sin(a) < 0 ? 44 : 52) * shrink);
+    const dia = Math.round((Math.sin(a) < 0 ? size.far : size.near) * shrink);
     out.set(st.station, { x: STAGE.cx + STAGE.rx * Math.cos(a), y: STAGE.cy + STAGE.ry * Math.sin(a), r: dia / 2, dia, above: Math.sin(a) < -0.5 });
   });
   return out;
@@ -753,7 +607,7 @@ function buildPlanets(stations) {
   const compact = stations.length > 12;
   const nodes = stations.map((st) => {
     const p = layout.get(st.station);
-    const use = s("use", { href: "#c-rock", width: 100, height: 100, style: "stroke-width:1.8px" });
+    const use = s("use", { href: sym("rock"), width: 100, height: 100 });
     const els = {
       ping: h("span", { class: "ping", hidden: true }),
       ring: h("span", { class: "sel-ring", hidden: true }),
@@ -761,14 +615,14 @@ function buildPlanets(stations) {
       dots: h("span", { class: "dots" }),
       rel: h("span", { class: "rel quiet" }),
     };
+    els.label = h("span", { class: `plabel card scaled-text ${p.above ? "above" : "below"}${compact ? " compact" : ""}` },
+      h("span", { class: "bullet", "aria-hidden": "true" }),
+      h("span", { class: "cols" },
+        h("span", { class: "pline" }, els.dots, h("b", { class: "pid" }, st.station)), els.rel));
     els.btn = h("button", { type: "button", class: "planet", "aria-pressed": "false",
-                            style: `left:${f1(p.x - p.r)}px; top:${f1(p.y - p.r)}px; width:${p.dia}px; height:${p.dia}px; background:var(--rock); transform:rotate(${wobble(st.station)}deg)` },
+                            style: `left:${f1(p.x - p.r)}px; top:${f1(p.y - p.r)}px; width:${p.dia}px; height:${p.dia}px; background:var(--rock); --wobble:${wobble(st.station)}deg` },
       s("svg", { viewBox: "0 0 100 100" }, use),
-      els.ping, els.ring,
-      h("span", { class: `plabel card scaled-text ${p.above ? "above" : "below"}${compact ? " compact" : ""}` },
-        h("span", { class: "bullet", "aria-hidden": "true" }),
-        h("span", { class: "cols" },
-          h("span", { class: "pline" }, els.dots, h("b", { class: "pid" }, st.station)), els.rel)));
+      els.ping, els.ring, els.label);
     els.btn.addEventListener("click", () => select(st.station));
     planetEls.set(st.station, els);
     return els.btn;
@@ -797,29 +651,31 @@ function renderMap() {
     planetKey = key;
     buildPlanets(stations);
   }
+  const laneR = skin.geometry.laneR;
   let out = "", inc = "", trade = "", heads = "";
   for (const st of stations) {
     const p = layout.get(st.station);
     const els = planetEls.get(st.station);
     if (!p || !els) continue;
     if (st.outgoing.length) {
-      const c = curve(HOME, p, STAGE.laneR, p.r + 10, 34);
+      const c = curve(HOME, p, laneR, p.r + 10, 34);
       out += `${c.d} `;
       heads += `${arrowHead(c)} `;
     }
-    if (st.incoming.length) inc += `${curve(p, HOME, p.r + 10, STAGE.laneR, 34).d} `;
-    if (st.cargo) trade += `${curve(HOME, p, STAGE.laneR, p.r + 6, 14).d} ${curve(p, HOME, p.r + 6, STAGE.laneR, 14).d} `;
+    if (st.incoming.length) inc += `${curve(p, HOME, p.r + 10, laneR, 34).d} `;
+    if (st.cargo) trade += `${curve(HOME, p, laneR, p.r + 6, 14).d} ${curve(p, HOME, p.r + 6, laneR, 14).d} `;
 
     const rel = relation(st);
     const kind = st.sells.length ? KIND[st.sells[0]] || "rock" : "rock";
-    els.btn.style.background = `var(--${kind === "ocean" ? "water" : kind === "farm" ? "food" : kind === "forge" ? "components" : "rock"})`;
-    if (els.use.getAttribute("href") !== `#c-${kind}`) els.use.setAttribute("href", `#c-${kind}`);
+    els.btn.style.background = `var(--${BODY[kind]})`;
+    if (els.use.getAttribute("href") !== sym(kind)) els.use.setAttribute("href", sym(kind));
     if (els.dots.dataset.sells !== st.sells.join()) {
       els.dots.dataset.sells = st.sells.join();
       els.dots.replaceChildren(...st.sells.map((r) => h("span", { class: `dot ${r}` })));
     }
     els.rel.textContent = rel.text;
     els.rel.className = `rel ${rel.tone}`;
+    els.label.dataset.tone = rel.tone;
     els.ping.hidden = !st.incoming.length;
     els.ring.hidden = selected !== st.station;
     els.btn.setAttribute("aria-pressed", selected === st.station ? "true" : "false");
@@ -839,23 +695,12 @@ function renderHome() {
   const pct = hl.max_health ? Math.max(0, hl.health) / hl.max_health : 0;
   const tone = pct >= 0.6 ? "good" : pct >= 0.3 ? "warning" : "critical";
   const kind = KIND[hd.specialty] || "ocean";
-  $("home-halo").className = `home-halo ${kind}`;
-  $("home-alarm").hidden = pct >= 0.3 || hd.phase !== "RUNNING";
-  $("home-sel").hidden = selected !== "home";
-  $("home-arc").setAttribute("class", `arc ${tone}`);
-  $("home-arc").setAttribute("stroke-dasharray", `${f1(RING * pct)} ${f1(RING)}`);
-  const chip = $("home-chip");
-  chip.className = `home-chip card scaled-text ${tone}`;
-  chip.replaceChildren(heartIcon(18), h("span", { class: "v" }, fmt(hl.health)), h("span", { class: "of" }, `/ ${fmt(hl.max_health)}`));
-  $("home-tag").className = "home-tag card scaled-text";
-  $("home-name-tag").textContent = `${hd.station} · us`;
-  $("home-name").textContent = `${hd.station} · us`;
-  $("home-world").textContent = WORLD[hd.specialty] || hd.specialty;
   const btn = $("home-btn");
-  btn.replaceChildren(s("svg", { viewBox: "0 0 100 100" }, s("use", { href: `#c-${kind}`, width: 100, height: 100, style: "stroke-width:2.6px" })));
-  btn.style.background = `var(--${kind === "ocean" ? "water" : kind === "farm" ? "food" : "components"})`;
+  btn.replaceChildren(s("svg", { viewBox: "0 0 100 100" }, s("use", { href: sym(kind), width: 100, height: 100 })));
+  btn.style.background = `var(--${BODY[kind]})`;
   btn.setAttribute("aria-pressed", selected === "home" ? "true" : "false");
   btn.setAttribute("aria-label", `${hd.station}, our station: health ${hl.health} of ${hl.max_health}`);
+  stageDecor.update({ hd, hl, pct, tone, kind, alarm: pct < 0.3 && hd.phase === "RUNNING", selected: selected === "home" });
 }
 
 // A ship per resource leaves each way when a trade settles: what we paid flies
@@ -863,6 +708,7 @@ function renderHome() {
 // trades still "in flight" get ships; the rest are history.
 function launchShips() {
   const hd = data.header;
+  const laneR = skin.geometry.laneR;
   const fresh = [];
   for (const t of data.trades.recent) {
     if (seenTrades.has(t.transaction_id)) continue;
@@ -873,7 +719,7 @@ function launchShips() {
   for (const t of fresh.reverse()) {
     const p = layout.get(t.counterparty);
     if (!p) continue;
-    const out = curve(HOME, p, STAGE.laneR, p.r + 6, 14), back = curve(p, HOME, p.r + 6, STAGE.laneR, 14);
+    const out = curve(HOME, p, laneR, p.r + 6, 14), back = curve(p, HOME, p.r + 6, laneR, 14);
     RESOURCES.filter((r) => t.we_gave[r]).forEach((r, i) => ship(out, r, i * 0.35));
     RESOURCES.filter((r) => t.we_got[r]).forEach((r, i) => ship(back, r, i * 0.35));
   }
@@ -884,7 +730,7 @@ function ship(c, resource, delay) {
   if (layer.childElementCount >= 40) return;  // a flood of trades still reads as traffic
   const dur = Math.min(4.5, Math.max(2.8, c.len / 36));
   const el = h("div", { class: "ship", style: `offset-path: path('${c.d}'); animation-duration: ${dur.toFixed(2)}s; animation-delay: ${delay}s` },
-    shipIcon(resource, 26));
+    shipIcon(resource, skin.geometry.ship));
   if (REDUCED.matches) {
     el.classList.add("still");
     setTimeout(() => el.remove(), 3000);
@@ -901,9 +747,20 @@ function select(id) {
   renderInspector();
 }
 
+function renderLegend() {
+  const key = (cls, x1, x2) => s("svg", { width: 26, height: 8, viewBox: "0 0 26 8", "aria-hidden": "true" }, s("line", { class: cls, x1, y1: 4, x2, y2: 4 }));
+  $("legend").replaceChildren(
+    h("span", {}, key("key-out", 1, 25), "our offer"),
+    h("span", {}, key("key-in", 2, 24), "offer for us"),
+    h("span", {}, h("span", { class: "key-ship" }, shipIcon("food", 24)), "rocket = trade just settled"),
+    h("span", {}, h("span", { class: "key-orbs", "aria-hidden": "true" }, ["ocean", "farm", "forge"].map((k) => h("span", { class: `orbicon ${k}` }))),
+      "colour = what a planet sells"));
+}
+
 // --- inspector: the selected planet, or the system at a glance ----------------------------------
 function tagLine(label, list) {
-  return list.length ? h("span", {}, label, " ", list.map((r) => h("span", { class: `dot ${r}` })), h("b", {}, list.join(" & "))) : null;
+  return list.length ? h("span", {}, label, " ", list.map((r) => h("span", { class: `dot ${r}` })),
+    h("b", {}, list.map((r, i) => [i ? " & " : "", h("span", { class: `word ${r}` }, r)]))) : null;
 }
 function terms(get, give) {
   return [
@@ -915,16 +772,16 @@ function inspectorParts(orbKind, caption, name, tags, title, tone, termsNodes, n
   return [
     h("div", { class: "who" },
       orbIcon(orbKind, 42),
-      h("div", { style: "display:flex; flex-direction:column; min-width:0" },
-        h("span", { class: "caption dark", style: "font-size:10px" }, caption),
-        h("span", { class: "name" }, name),
+      h("div", { class: "who-text" },
+        h("span", { class: "caption dark who-k" }, caption),
+        h("span", { class: "who-name" }, name),
         h("div", { class: "tags" }, tags))),
     h("span", { class: "rule", "aria-hidden": "true" }),
     h("div", { class: `now ${tone}` },
       h("span", { class: "t" }, title),
-      h("div", { class: "terms" }, termsNodes, note ? h("span", { class: "muted", style: "color:var(--card-muted)" }, note) : null)),
+      h("div", { class: "terms" }, termsNodes, note ? h("span", { class: "note" }, note) : null)),
     h("span", { class: "rule", "aria-hidden": "true" }),
-    h("div", { class: "past" }, h("span", { class: "v" }, pastValue), h("span", { style: "font-size:12px; font-weight:700; color:var(--card-muted)" }, pastNote)),
+    h("div", { class: "past" }, h("span", { class: "v" }, pastValue), h("span", { class: "k" }, pastNote)),
   ];
 }
 
@@ -989,38 +846,39 @@ function reserveCard(r) {
   const cover = r.self_sufficient ? "makes its own" : r.cover_ticks == null ? "not consumed"
     : r.cover_ticks === 0 ? "empty" : `${r.cover_ticks} ticks`;
   return h("article", { class: "res card", "data-resource": r.resource },
-    h("span", { class: "tape", "aria-hidden": "true" }),
+    skin.decor("reserve"),
     h("div", { class: "res-head" },
       orbIcon(KIND[r.resource], 30),
       h("span", { class: "res-name" }, r.resource),
-      r.is_specialty ? h("span", { class: "res-star", title: "our specialty: we produce it" }, "★ we make it") : null,
-      badge(level.tone, level.icon, level.label)),
-    h("div", { class: "amount-row" },
-      h("span", { style: "display:flex; align-items:baseline; gap:6px" },
-        h("span", { class: "amount" }, fmt(r.amount)), h("span", { class: "amount-note" }, "in the hold")),
-      h("span", { class: "net num", title: "made minus burned last tick, before any trades" },
-        `${net > 0 ? "+" : net < 0 ? "−" : "±"}${fmt(Math.abs(net))} / tick`)),
-    h("div", { class: `gauge ${level.tone}` },
-      h("div", { class: "gauge-head" }, h("span", { style: "color:var(--card-ink-2)" }, "Lasts"), h("span", { class: "toned num" }, cover)),
-      h("div", { class: "gauge-bar", role: "meter", "aria-label": `${r.resource} cover in ticks`,
-                 "aria-valuenow": r.cover_ticks ?? scale.max_ticks, "aria-valuemax": scale.max_ticks },
-        h("span", { class: "fill", style: `width:${fill}%` }),
-        h("span", { class: "notch", style: `left:${at(scale.critical_ticks)}` }),
-        h("span", { class: "notch", style: `left:${at(scale.low_ticks)}` })),
-      h("div", { class: "gauge-scale", "aria-hidden": "true" },
-        h("span", { style: "left:0" }, "0"),
-        h("span", { style: `left:${at(scale.critical_ticks)}` }, fmt(scale.critical_ticks)),
-        h("span", { style: `left:${at(scale.low_ticks)}` }, fmt(scale.low_ticks)),
-        h("span", {}, `${fmt(scale.max_ticks)}+ ticks`))),
-    sparkline(r),
-    h("div", { class: "minis" },
-      [["MAKES", r.last_production], ["BURNS", r.upkeep], ["BOUGHT", r.imported_total], ["SOLD", r.exported_total]].map(([k, v]) =>
-        h("div", { style: "display:flex; flex-direction:column" }, h("span", { class: "k" }, k), h("span", { class: "v" }, fmt(v))))),
-    r.last_unmet ? h("div", { class: "alert critical" }, `! ${fmt(r.last_unmet)} short last tick, costing health`) : null);
+      r.is_specialty ? h("span", { class: "res-star", title: "our specialty: we produce it" }, "we make it") : null,
+      skin.levelBadge(level)),
+    h("div", { class: "res-body" },
+      h("div", { class: "amount-row" },
+        h("span", { class: "amount-wrap" },
+          h("span", { class: "amount" }, digits(r.amount)), h("span", { class: "amount-note" }, "in the hold")),
+        h("span", { class: "net num", title: "made minus burned last tick, before any trades" },
+          `${net > 0 ? "+" : net < 0 ? "−" : "±"}${fmt(Math.abs(net))} / tick`)),
+      h("div", { class: `gauge ${level.tone}` },
+        h("div", { class: "gauge-head" }, h("span", { class: "gauge-k" }, "Lasts"), h("span", { class: "toned num" }, cover)),
+        h("div", { class: "gauge-bar", role: "meter", "aria-label": `${r.resource} cover in ticks`,
+                   "aria-valuenow": r.cover_ticks ?? scale.max_ticks, "aria-valuemax": scale.max_ticks },
+          h("span", { class: "fill", style: `width:${fill}%` }),
+          h("span", { class: "notch", style: `left:${at(scale.critical_ticks)}` }),
+          h("span", { class: "notch", style: `left:${at(scale.low_ticks)}` })),
+        h("div", { class: "gauge-scale", "aria-hidden": "true" },
+          h("span", { style: "left:0" }, "0"),
+          h("span", { style: `left:${at(scale.critical_ticks)}` }, fmt(scale.critical_ticks)),
+          h("span", { style: `left:${at(scale.low_ticks)}` }, fmt(scale.low_ticks)),
+          h("span", {}, `${fmt(scale.max_ticks)}+ ticks`))),
+      sparkline(r),
+      h("div", { class: "minis" },
+        [["MAKES", r.last_production], ["BURNS", r.upkeep], ["BOUGHT", r.imported_total], ["SOLD", r.exported_total]].map(([k, v]) =>
+          h("div", { class: "mini" }, h("span", { class: "k" }, k), h("span", { class: "v" }, fmt(v))))),
+      r.last_unmet ? h("div", { class: "alert critical" }, `! ${fmt(r.last_unmet)} short last tick, costing health`) : null));
 }
 
 // A single-series trend: a line, a faint wash, an end dot, and a crosshair that
-// snaps to the nearest tick on hover.
+// snaps to the nearest tick on hover.  Colours come from the card's resource.
 function sparkline(r) {
   const pts = r.history;
   if (pts.length < 2) return h("div", { class: "spark-empty" }, "trend appears after two ticks");
@@ -1030,22 +888,20 @@ function sparkline(r) {
   const x = (t) => pad + ((W - 2 * pad) * (t - t0)) / Math.max(1, t1 - t0);
   const y = (v) => H - pad - ((H - 2 * pad) * v) / maxY;  // zero is the baseline: empty means empty
   const line = pts.map((p, i) => `${i ? "L" : "M"}${f1(x(p[0]))},${f1(y(p[1]))}`).join("");
-  const colour = { water: "#3d9be9", food: "#4cb86a", components: "#f08a3c" }[r.resource] || "#8f84c4";
   const svg = s("svg", { class: "spark", viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", role: "img",
                           "aria-label": `${r.resource} over the last ${pts.length} ticks` },
-    s("path", { d: `${line}L${f1(x(t1))},${y(0)}L${f1(x(t0))},${y(0)}Z`, style: `fill:${colour}`, "fill-opacity": 0.2 }),
-    s("path", { d: line, fill: "none", style: `stroke:${colour}`, "stroke-width": 2.4, "stroke-linejoin": "round", "stroke-linecap": "round", "vector-effect": "non-scaling-stroke" }));
-  const cross = s("line", { y1: pad, y2: H - pad, stroke: "rgba(42,36,70,0.35)", "stroke-width": 1, "vector-effect": "non-scaling-stroke", visibility: "hidden" });
+    s("path", { class: "spark-fill", d: `${line}L${f1(x(t1))},${y(0)}L${f1(x(t0))},${y(0)}Z` }),
+    s("path", { class: "spark-line", d: line, fill: "none", "vector-effect": "non-scaling-stroke" }));
+  const cross = s("line", { class: "spark-cross", y1: pad, y2: H - pad, "vector-effect": "non-scaling-stroke", visibility: "hidden" });
   svg.append(cross);
   const wrap = h("div", { class: "spark-wrap" }, svg);
-  // Dots are HTML over the SVG so they stay round when the SVG stretches.
-  const dot = (px, py) => h("span", { style:
-    `position:absolute; left:calc(${(100 * px) / W}% - 4px); top:${py - 4}px; width:8px; height:8px; border-radius:50%; background:${colour}; border:1.5px solid #fdf3e1; pointer-events:none` });
+  const place = (el, px, py) => { el.style.left = `${(100 * px) / W}%`; el.style.top = `${(100 * py) / H}%`; };
   const last = pts[pts.length - 1];
-  const hover = dot(0, 0);
-  hover.style.visibility = "hidden";
+  const end = h("span", { class: "spark-dot" });
+  place(end, x(last[0]), y(last[1]));
+  const hover = h("span", { class: "spark-dot", style: "visibility:hidden" });
   const tip = h("div", { class: "tooltip", style: "visibility:hidden" });
-  wrap.append(dot(x(last[0]), y(last[1])), hover, tip);
+  wrap.append(end, hover, tip);
   svg.addEventListener("pointermove", (e) => {
     const box = svg.getBoundingClientRect();
     const px = ((e.clientX - box.left) / box.width) * W;
@@ -1054,8 +910,7 @@ function sparkline(r) {
     const bx = x(best[0]);
     cross.setAttribute("x1", bx); cross.setAttribute("x2", bx);
     cross.setAttribute("visibility", "visible");
-    hover.style.left = `calc(${(100 * bx) / W}% - 4px)`;
-    hover.style.top = `${y(best[1]) - 4}px`;
+    place(hover, bx, y(best[1]));
     hover.style.visibility = "visible";
     tip.replaceChildren(h("b", {}, fmt(best[1])), ` ${r.resource} · tick ${best[0]}`);
     tip.style.left = `${Math.min(Math.max(0, (bx / W) * box.width - 60), box.width - 140)}px`;
@@ -1090,21 +945,6 @@ function renderCargo() {
 }
 
 // --- agent panel: intent and counts, which change slowly enough to read -------------------------------
-function mascotIcon() {
-  return s("svg", { width: 44, height: 44, viewBox: "0 0 48 48", "aria-hidden": "true", style: "transform: rotate(-6deg); filter: drop-shadow(0 2px 2px rgba(42,36,70,0.35))" },
-    s("circle", { cx: 24, cy: 24, r: 23, fill: "#fffaf0" }),
-    s("circle", { cx: 24, cy: 24, r: 19.5, fill: "#ffd9e6" }),
-    s("path", { d: "M24 14 L24 8.5", stroke: "#2a2446", "stroke-width": 2, "stroke-linecap": "round" }),
-    s("circle", { cx: 24, cy: 7.5, r: 3, fill: "#ffc83a", stroke: "#2a2446", "stroke-width": 1.5 }),
-    s("rect", { x: 10, y: 21, width: 4, height: 9, rx: 2, fill: "#9fd4ff", stroke: "#2a2446", "stroke-width": 1.5 }),
-    s("rect", { x: 34, y: 21, width: 4, height: 9, rx: 2, fill: "#9fd4ff", stroke: "#2a2446", "stroke-width": 1.5 }),
-    s("rect", { x: 13, y: 14, width: 22, height: 21, rx: 8, fill: "#bfe3ff", stroke: "#2a2446", "stroke-width": 1.8 }),
-    s("circle", { cx: 19.5, cy: 23.5, r: 3, fill: "#2a2446" }),
-    s("circle", { cx: 28.5, cy: 23.5, r: 3, fill: "#2a2446" }),
-    s("circle", { cx: 20.5, cy: 22.5, r: 1, fill: "#ffffff" }),
-    s("circle", { cx: 29.5, cy: 22.5, r: 1, fill: "#ffffff" }),
-    s("path", { d: "M20.5 29.5 Q24 32 27.5 29.5", fill: "none", stroke: "#2a2446", "stroke-width": 1.8, "stroke-linecap": "round" }));
-}
 const EVENT_ICONS = {
   trade: () => shipIcon(null, 18),
   warning: () => s("svg", { width: 15, height: 15, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "stroke-width": 1.8, "stroke-linejoin": "round", "stroke-linecap": "round", "aria-hidden": "true" },
@@ -1115,21 +955,22 @@ const EVENT_ICONS = {
     s("path", { d: "M2.5 5.5 H12.5 L10 3" }), s("path", { d: "M13.5 10.5 H3.5 L6 13" })),
 };
 EVENT_ICONS.alert = EVENT_ICONS.warning;
+const eventIcon = (kind) => (skin.eventIcons[kind] || EVENT_ICONS[kind] || EVENT_ICONS.info)();
 
-// The panel's frame is built once, so its buttons are never swapped out from
-// under a click; each update only fills in the parts that change.
+// The panel's frame is built once per skin, so its buttons are never swapped
+// out from under a click; each update only fills in the parts that change.
 let agentEls = null;
 
 function buildAgent() {
   const column = (gap) => h("div", { style: `display:flex; flex-direction:column; gap:${gap}px` });
   const els = {
-    name: h("span", { class: "display", style: "font-size:18px" }),
+    name: h("span", { class: "agent-name" }),
     pause: h("button", { type: "button", class: "btn" }),
     now: h("span", { class: "caption dark" }),
     headline: h("span", { class: "headline" }),
     goals: column(8),
     window: h("span", { class: "caption dark" }),
-    range: h("span", { class: "num", style: "font-size:11px; font-weight:800; color:var(--card-muted)" }),
+    range: h("span", { class: "num range" }),
     stats: h("div", { class: "stats" }),
     problem: h("div", { class: "problem" }),
     events: column(9),
@@ -1143,12 +984,12 @@ function buildAgent() {
   const logButton = h("button", { type: "button", class: "link" }, "Full action log →");
   logButton.addEventListener("click", openLog);
   $("agent").replaceChildren(
+    h("div", { class: "agent-head" },
+      skin.mascot(),
+      h("div", { class: "agent-id" }, h("span", { class: "caption dark" }, "Agent"), els.name),
+      els.pause),
     h("section", {},
-      h("div", { class: "agent-head" },
-        mascotIcon(),
-        h("div", { style: "display:flex; flex-direction:column; line-height:1.2" }, h("span", { class: "caption dark" }, "Agent"), els.name),
-        els.pause),
-      h("div", { style: "display:flex; flex-direction:column; gap:3px" }, els.now, els.headline),
+      h("div", { class: "now-block" }, els.now, els.headline),
       els.goals),
     h("section", {}, h("div", { class: "row-between" }, els.window, els.range), els.stats, els.problem),
     h("section", { class: "grow" },
@@ -1156,11 +997,9 @@ function buildAgent() {
       els.events),
     h("section", {},
       h("div", { class: "row-between" }, els.stripLabel,
-        h("span", { style: "font-size:11px; font-weight:800; color:var(--card-muted)" },
-          h("span", { class: "swatch", style: "background:var(--food-line)" }), "trades ↑  ",
-          h("span", { class: "swatch", style: "background:#e0485f; margin-left:6px" }), "failures ↓")),
+        h("span", { class: "strip-key" }, h("span", { class: "swatch up" }), "trades ↑  ", h("span", { class: "swatch down" }), "failures ↓")),
       els.strip,
-      h("div", { class: "row-between num", style: "font-size:11px; font-weight:800; color:var(--card-muted)" }, els.from, els.to)));
+      h("div", { class: "row-between num strip-ends" }, els.from, els.to)));
   return els;
 }
 
@@ -1217,19 +1056,19 @@ function renderAgent() {
 
   els.events.replaceChildren(...(data.highlights.length
     ? data.highlights.map((e) => h("div", { class: `event ${EVENT_TONE[e.kind] || "neutral"}` },
-        h("span", { class: "icon" }, (EVENT_ICONS[e.kind] || EVENT_ICONS.info)()),
+        h("span", { class: "icon" }, eventIcon(e.kind)),
         h("span", { class: "text" }, e.text),
         h("span", { class: "t" }, `t${e.tick}`)))
     : [h("span", { class: "empty" }, "Nothing notable yet.")]));
 
   const maxEvents = Math.max(3, ...rc.strip.map((t) => Math.max(t.trades, t.failures)));
-  const bar = (n) => Math.round((22 * n) / maxEvents);
+  const bar = (n) => (n ? h("span", { style: `height:${Math.round((22 * n) / maxEvents)}px` }) : null);
   els.stripLabel.textContent = `Last ${rc.strip.length} ticks`;
   els.strip.setAttribute("aria-label", `Trades and failures over the last ${rc.strip.length} ticks`);
   els.strip.replaceChildren(h("span", { class: "base" }),
     ...rc.strip.map((t) => h("div", { class: "col", title: `t${t.tick}: ${plural(t.trades, "trade")}, ${plural(t.failures, "failure")}` },
-      h("div", { class: "up" }, h("span", { style: `height:${bar(t.trades)}px` })),
-      h("div", { class: "down" }, h("span", { style: `height:${bar(t.failures)}px` })))));
+      h("div", { class: "up" }, bar(t.trades)),
+      h("div", { class: "down" }, bar(t.failures)))));
   els.from.textContent = `t${rc.strip.length ? rc.strip[0].tick : rc.to_tick}`;
   els.to.textContent = `t${rc.to_tick}`;
 }
@@ -1247,8 +1086,8 @@ function togglePause() {
 
 // --- the full action log ---------------------------------------------------------------------------
 function giveGet(give, get) {
-  return [h("span", { class: "muted", style: "color:var(--card-muted)" }, "give"), bundle(give, { boxed: true }), arrow(),
-          h("span", { class: "muted", style: "color:var(--card-muted)" }, "get"), bundle(get, { boxed: true })];
+  return [h("span", { class: "soft" }, "give"), bundle(give, { boxed: true }), arrow(),
+          h("span", { class: "soft" }, "get"), bundle(get, { boxed: true })];
 }
 function actionLine(a) {
   const t = a.terms || {};
@@ -1256,13 +1095,13 @@ function actionLine(a) {
   switch (t.kind) {
     case "offer":
       return [kind("Offer"), h("span", { class: "who" }, `to ${station(t.counterparty)}`), giveGet(t.we_give, t.we_get),
-              h("span", { style: "font-size:12px; font-weight:800; color:var(--card-muted)" }, `until t${t.expires_tick}`)];
+              h("span", { class: "until" }, `until t${t.expires_tick}`)];
     case "accept":
       return [kind("Accept"), t.counterparty ? h("span", { class: "who" }, `from ${station(t.counterparty)}`) : null,
               t.we_give ? giveGet(t.we_give, t.we_get) : h("span", { class: "rid" }, t.offer_id)];
     case "advertise":
-      return [kind("Advertise"), h("span", { style: "color:var(--card-muted)" }, "selling"), resourceList(t.selling),
-              h("span", { style: "color:var(--card-muted)" }, "· seeking"), resourceList(t.seeking)];
+      return [kind("Advertise"), h("span", { class: "soft" }, "selling"), resourceList(t.selling),
+              h("span", { class: "soft" }, "· seeking"), resourceList(t.seeking)];
     case "withdraw":
       return [kind("Withdraw"), t.counterparty ? h("span", { class: "who" }, `offer to ${station(t.counterparty)}`) : null,
               h("span", { class: "rid" }, t.object_id)];
@@ -1279,8 +1118,8 @@ function renderLog() {
       group = a.world_version;
       const n = ac.recent.filter((x) => x.world_version === group).length;
       rows.push(h("div", { class: "tick-head" },
-        h("span", { class: "display", style: "font-size:15px" }, `Tick ${fmt(a.tick)}`),
-        h("span", { class: "num", style: "font-size:12px; font-weight:800; color:var(--card-muted)" }, `v${fmt(a.world_version)}`),
+        h("span", { class: "tick-title" }, `Tick ${fmt(a.tick)}`),
+        h("span", { class: "num tick-v" }, `v${fmt(a.world_version)}`),
         h("span", { class: "right" }, plural(n, "action"))));
     }
     const st = STATUS[a.status] || { icon: "?", label: a.status, tone: "neutral" };
@@ -1296,7 +1135,7 @@ function renderLog() {
   }
   const ld = ac.last_decision;
   $("log-sub").textContent = `${ld ? `last decision t${ld.tick}` : "no decision yet"} · ${fmt(ac.results_used)} / ${fmt(ac.results_cap)} result slots used`;
-  $("log-body").replaceChildren(...(rows.length ? rows : [h("div", { class: "empty", style: "padding:18px 22px" },
+  $("log-body").replaceChildren(...(rows.length ? rows : [h("div", { class: "empty log-empty" },
     "The agent has not decided anything yet. The scripted exercise drives the connection itself, so it shows no actions here.")]));
 }
 function openLog() {
@@ -1369,7 +1208,13 @@ function connect() {
   };
 }
 
-render();
+// Every skin's symbols are in the page at once, each namespaced by its skin.
+for (const def of SKINS.values()) {
+  document.body.insertAdjacentHTML("afterbegin",
+    `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${def.symbols}</defs></svg>`);
+}
+buildPicker();
+applySkin(document.documentElement.dataset.skin);
 connect();
 setInterval(updateLive, 250);
 </script>

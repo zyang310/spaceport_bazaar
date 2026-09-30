@@ -1,8 +1,9 @@
 """Serves the dashboard page and pushes each new view to it.
 
 One port does both jobs.  ``websockets`` can answer a plain HTTP request from
-``process_request`` before any handshake, so the page, a JSON snapshot for
-``curl``, and the live feed all come from a library the client already uses.
+``process_request`` before any handshake, so the page, its skins, a JSON
+snapshot for ``curl``, and the live feed all come from a library the client
+already uses.
 
 Pushing uses ``broadcast``, which never waits on a browser: a slow or stalled
 tab loses a frame rather than holding up the trading loop.
@@ -16,16 +17,24 @@ from websockets.exceptions import ConnectionClosed
 from .hub import Dashboard
 
 PAGE = Path(__file__).with_name("index.html")
+SKINS = Path(__file__).with_name("skins")
+SKIN_TYPES = {".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8"}
 
 
 class DashboardServer:
-    """Serves one :class:`Dashboard` at ``/`` (page), ``/view.json`` and ``/ws``."""
+    """Serves one :class:`Dashboard` at ``/`` (page), ``/skins/*``, ``/view.json`` and ``/ws``."""
 
     def __init__(self, dashboard: Dashboard):
         self.dashboard = dashboard
         self.host: str | None = None
         self._server = None
         self._page = PAGE.read_text(encoding="utf-8")
+        # Read once, like the page, and served only by exact name: no request
+        # path is ever turned into a file path.
+        self._skins = {
+            f"/skins/{file.name}": (file.read_text(encoding="utf-8"), SKIN_TYPES[file.suffix])
+            for file in sorted(SKINS.iterdir()) if file.suffix in SKIN_TYPES
+        }
         dashboard.subscribe(self._push)
 
     async def start(self, host: str, port: int) -> str:
@@ -65,6 +74,9 @@ class DashboardServer:
             return _typed(connection.respond(200, self._page), "text/html; charset=utf-8")
         if path == "/view.json":
             return _typed(connection.respond(200, self.dashboard.payload()), "application/json")
+        if path in self._skins:
+            body, content_type = self._skins[path]
+            return _typed(connection.respond(200, body), content_type)
         return connection.respond(404, "not found\n")
 
     async def _handler(self, connection) -> None:

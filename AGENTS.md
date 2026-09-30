@@ -80,6 +80,7 @@ not otherwise contain the literal string.
 | `bazaar/config.py` | Connection settings and every tunable weight. |
 | `bazaar/runlog.py` | Per-run JSONL logs under `runs/` (gitignored). |
 | `bazaar/dashboard/` | Live page per run. `view.py` is pure; `hub.py` records the action lifecycle; `server.py` serves page + WebSocket on one port. Must never break trading: hooks swallow their own errors. |
+| `bazaar/dashboard/skins/` | One `<id>.css` + `<id>.js` pair per look, switched in the browser (`?skin=<id>` or the header menu). `index.html` keeps layout and rendering; a skin's CSS is scoped to `:root[data-skin="<id>"]` and its script registers symbols plus the few shapes that differ (see `SKIN_DEFAULTS`). Add a skin by linking both files in `index.html`. |
 | `bazaar/sandbox/` | Local game server for testing: `world.py` (rules, pure), `bots.py` (seeded traders), `server.py` (socket). Speaks `model` types via `encode.encode_server_bytes` / `decode.decode_client_bytes`. |
 | `bazaar/network/probe.py`, `walkthrough.py` | Standalone diagnostics, outside the layers. |
 | `bazaar/memory/` | Empty stubs. Nothing persists across ticks yet. |
