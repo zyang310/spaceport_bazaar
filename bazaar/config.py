@@ -260,6 +260,15 @@ class DashboardSettings:
     #: changes nothing worth looking at.
     cover_gauge_ticks: float = 20.0
 
+    #: The agent panel's two windows, in ticks: the counts, then the strip.
+    recent_window_ticks: int = 10
+    strip_ticks: int = 30
+    #: Highlights the panel lists, and notable changes the hub keeps for it.
+    highlights: int = 6
+    events_kept: int = 80
+    #: A trade settled within this many ticks still shows its cargo lane.
+    cargo_ticks: int = 2
+
 
 DASHBOARD = DashboardSettings()
 

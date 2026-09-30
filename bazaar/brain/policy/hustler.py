@@ -51,15 +51,14 @@ class HustlerPolicy(BasePolicy):
             for resource in self._order(state)
         }
 
-    def prices(self, state, needs, cover) -> dict:
+    def prices(self, state, needs) -> dict:
         """What a unit of each resource is worth to us right now.
 
-        The specialty is cheap while it is our currency, because production
-        refills it.  Once it is the thing running short it is priced like
-        anything else.
+        The specialty is cheap while we still hold any of it, because it is
+        ours to spend.  Once it is gone it is priced like anything else.
         """
         weights = self.weights
-        currency = self._currency(state, cover)
+        currency = self._currency(state)
         priced = {}
         for resource, need in needs.items():
             if resource == currency:
@@ -99,16 +98,20 @@ class HustlerPolicy(BasePolicy):
             and state.observation.inventory.get(r) >= self.weights.offer_ratio
         )
 
-    def _currency(self, state, cover) -> model.Resource | None:
-        """The specialty, while there is enough of it to pay with.
+    def _currency(self, state) -> model.Resource | None:
+        """The specialty, while we still hold any of it.
 
-        Below the floor it is just another resource we are short of, and is
-        bought and guarded like one.
+        Judged purely by what is in the hold, never by how fast it might
+        refill.  Production varies from run to run and even tick to tick, so
+        it is not something to project -- a balance that looks thin is read
+        as spent on purpose, right up until it actually runs out, at which
+        point it is just another resource we are short of, bought and
+        guarded like one.
         """
         specialty = state.observation.specialty
-        return specialty if specialty in self._spare(state, cover) else None
+        return specialty if state.observation.inventory.get(specialty) > 0 else None
 
-    def _wanted(self, state, cover, needs) -> tuple:
+    def _wanted(self, state, needs) -> tuple:
         """What we would take.
 
         With a currency, everything else.  We make none of it and burn all of
@@ -119,7 +122,7 @@ class HustlerPolicy(BasePolicy):
 
         Without one, anything not in clear surplus counts.
         """
-        currency = self._currency(state, cover)
+        currency = self._currency(state)
         others = [r for r in self._order(state) if r != currency]
         if currency is not None:
             return tuple(others)
@@ -131,7 +134,7 @@ class HustlerPolicy(BasePolicy):
         Listing water as well invites peers to trade it away from us for more
         of what we make.  With no currency, anything spare is listed.
         """
-        currency = self._currency(state, cover)
+        currency = self._currency(state)
         return (currency,) if currency is not None else self._spare(state, cover)
 
     # --- candidates ------------------------------------------------------
@@ -143,7 +146,7 @@ class HustlerPolicy(BasePolicy):
         trade, repeated, is how a station starves on a full warehouse.
         """
         weights = self.weights
-        currency = self._currency(state, cover)
+        currency = self._currency(state)
         chosen = []
         for offer in sorted(store.incoming_open_offers(state), key=lambda o: o.offer_id):
             received, paid = offer.give, offer.receive
@@ -181,7 +184,7 @@ class HustlerPolicy(BasePolicy):
         peer's listing seeks it.  Anything else must be spare and sought.
         """
         weights = self.weights
-        currency = self._currency(state, cover)
+        currency = self._currency(state)
         spare = self._spare(state, cover)
         terms = []
         if currency is not None and (
@@ -303,8 +306,8 @@ class HustlerPolicy(BasePolicy):
     def candidates(self, state) -> list:
         cover = self.cover(state)
         needs = self.needs(state)
-        prices = self.prices(state, needs, cover)
-        wanted = self._wanted(state, cover, needs)
+        prices = self.prices(state, needs)
+        wanted = self._wanted(state, needs)
         return [
             *self._accepts(state, cover, prices),
             *self._offers(state, cover, prices, wanted),

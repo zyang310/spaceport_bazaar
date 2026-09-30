@@ -236,19 +236,40 @@ def test_it_will_pay_several_of_its_specialty_for_one_unit_it_lacks():
     )
 
 
-def test_a_specialty_below_the_floor_is_bought_like_anything_else():
-    thin = observation(inventory=bundle(2, 30, 30), upkeep_per_tick=bundle(1, 1, 1))
+def test_a_specialty_with_nothing_left_is_bought_like_anything_else():
+    """Once there is not even one unit of it on hand, it cannot be paid with,
+    and the Hustler falls back to treating it like anything else it lacks."""
+    empty = observation(inventory=bundle(0, 30, 30), upkeep_per_tick=bundle(1, 1, 1))
     refill = offer(offer_id="refill", give=(3, 0, 0), receive=(0, 0, 1))
-    decided = decide(observation=thin, offers=[refill])
+    decided = decide(observation=empty, offers=[refill])
     assert any(isinstance(a, actions.Accept) for a in decided)
     ad = [a for a in decided if isinstance(a, actions.Advertise)][0]
     assert WATER in ad.seeking
 
 
+def test_a_specialty_is_never_bought_back_as_long_as_any_of_it_remains():
+    """Two water on hand is thin, but there is still some: the Hustler does
+    not try to guess whether production will refill it, only whether the
+    hold is actually empty yet.
+
+    Before the fix, ``cover`` read a deliberately thin currency balance as a
+    shortage and switched to buying it -- a live run sold its components
+    down to near zero this way and then tried to buy them back.
+    """
+    thin = observation(inventory=bundle(2, 30, 30), upkeep_per_tick=bundle(1, 1, 1))
+    refill = offer(offer_id="refill", give=(3, 0, 0), receive=(0, 0, 1))
+    seller = peer(selling=(WATER, FOOD), seeking=(FOOD, COMPONENTS))
+    decided = decide(observation=thin, offers=[refill], advertisements=[seller])
+    assert not any(isinstance(a, actions.Accept) for a in decided)
+    assert all(o.receive[0] == 0 for o in offers_in(decided))
+    ad = [a for a in decided if isinstance(a, actions.Advertise)][0]
+    assert WATER not in ad.seeking
+
+
 def test_only_the_specialty_is_offered_unasked():
-    """With the specialty under the floor, a peer seeking nothing gets nothing."""
-    thin = observation(inventory=bundle(2, 2, 30), upkeep_per_tick=bundle(1, 1, 1))
-    decided = decide(observation=thin, advertisements=[peer(selling=(FOOD,), seeking=())])
+    """With nothing of the specialty left, a peer seeking nothing gets nothing."""
+    empty = observation(inventory=bundle(0, 2, 30), upkeep_per_tick=bundle(1, 1, 1))
+    decided = decide(observation=empty, advertisements=[peer(selling=(FOOD,), seeking=())])
     assert offers_in(decided) == []
 
 

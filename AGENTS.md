@@ -24,7 +24,7 @@ Where this repo's docs and the starter README disagree, **the README wins.**
 ## 2. Commands
 
 ```bash
-# Tests — 260 of them, all must pass. Fast (~2s).
+# Tests — 287 of them, all must pass. Fast (~2s).
 python -m pytest tests/ -q
 
 # One file
@@ -220,7 +220,7 @@ Match the surrounding code. Concretely:
 ## 9. Before you finish
 
 ```bash
-python -m pytest tests/ -q                                    # 260 passing
+python -m pytest tests/ -q                                    # 287 passing
 grep -rn "bazaar_pb2" bazaar/ --include="*.py" | grep -v "^bazaar/generated/"
 git status --short                                            # no .env, no webb_docs/
 ```

@@ -112,7 +112,7 @@ async def main_async(args: argparse.Namespace) -> int:
     # handshake and however long the game sits in PHASE_READY.
     dashboard = dashboard_server = None
     if not args.no_dashboard:
-        dashboard = Dashboard()
+        dashboard = Dashboard(agent=args.policy)
         dashboard_server = DashboardServer(dashboard)
         try:
             print(f"dashboard: {await dashboard_server.start(config.DASHBOARD.host, args.dashboard_port)}")

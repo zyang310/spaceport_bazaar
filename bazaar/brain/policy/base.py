@@ -128,6 +128,11 @@ class BasePolicy(abc.ABC):
 
         A resource with no upkeep is never consumed, so it lasts forever and
         can never be in danger.
+
+        Production is deliberately left out.  How much a station makes can
+        differ from run to run and tick to tick, so a rate sampled from one
+        tick is not something to project forward -- the stock actually on
+        hand is the one number this can trust.
         """
         observation = state.observation
         ticks = {}

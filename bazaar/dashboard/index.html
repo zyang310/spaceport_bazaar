@@ -6,276 +6,509 @@
 <title>Bazaar dashboard</title>
 <!-- Fonts are a nicety: offline, the fallbacks in each stack take over. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Figtree:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root {
     color-scheme: dark;
-    --page: #101112;
-    --bar: #141517;
-    --surface: #17181a;
-    --raised: #1d1f21;
-    --ink: #ecebe6;
-    --ink-2: #c9c7c0;
-    --ink-3: #a9a79f;
-    --muted: #8a887f;
-    --line: rgba(255, 255, 255, 0.07);
-    --line-soft: rgba(255, 255, 255, 0.05);
-    --track: rgba(255, 255, 255, 0.07);
-    --wash: rgba(255, 255, 255, 0.025);
+    --page: #221e44;
+    --dark: #2a2446;
+    --card: #fdf3e1;
+    --ink: #fdf3e1;
+    --ink-2: #c9c3e6;
+    --muted: #9891c4;
+    --card-ink: #2a2446;
+    --card-ink-2: #4d4670;
+    --card-muted: #655e87;
+    --line: #e2cfa8;
+    --track: rgba(253, 243, 225, 0.16);
 
     /* One colour per resource, everywhere on the page. */
-    --water: #4d9cf0;
-    --food: #3cc28f;
-    --components: #f08a4b;
+    --water: #5bb0f5;
+    --water-line: #1f6fb8;
+    --food: #6fd394;
+    --food-line: #2b7f45;
+    --components: #ffab5e;
+    --components-line: #b45510;
+    --rock: #b3a9d9;
 
     /* Status: only where the colour means good or bad, always with a symbol and a word. */
-    --good: #4cc35a;
-    --warning: #f2b84b;
-    --critical: #f06a5f;
-    --neutral: #a9a79f;
+    --good: #9ee6b4;
+    --good-ink: #1c3a28;
+    --warning: #ffd35a;
+    --warning-ink: #4a3000;
+    --critical: #ffa3b1;
+    --critical-ink: #5a0f1f;
+    --neutral: #e2d8f5;
+    --neutral-ink: #2a2446;
+    --accent: #9fd4ff;
+    --pink: #ff8ab2;
 
-    --display: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
-    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --display: "Bagel Fat One", "Arial Rounded MT Bold", system-ui, sans-serif;
+    --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   }
 
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body {
     margin: 0;
-    background: var(--page);
+    min-height: 100vh;
     color: var(--ink);
-    font: 14px/1.45 var(--body);
+    font: 600 14px/1.4 var(--body);
+    background-color: var(--page);
+    background-image: radial-gradient(rgba(253, 243, 225, 0.09) 1.3px, transparent 1.5px);
+    background-size: 22px 22px;
   }
-  main { max-width: 1440px; margin: 0 auto; padding: 28px 40px 40px; display: flex; flex-direction: column; gap: 24px; }
-  main.dimmed { opacity: 0.55; transition: opacity 0.3s; }
-  h2, h3 { margin: 0; font-family: var(--display); font-weight: 600; }
-  h2 { font-size: 18px; }
-  h3 { font-size: 15px; }
-  .display { font-family: var(--display); }
-  .mono { font-family: var(--mono); }
+  button { font: inherit; color: inherit; }
+  a { color: var(--accent); }
+  h2, h3 { margin: 0; font-family: var(--display); font-weight: 400; }
+  .display { font-family: var(--display); font-weight: 400; }
   .num { font-variant-numeric: tabular-nums; }
-  .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  .nowrap { white-space: nowrap; }
   .muted { color: var(--muted); }
-  .dim { color: var(--ink-3); }
-  .empty { color: var(--muted); padding: 6px 0; font-size: 13px; }
+  .caption { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+  .caption.dark { color: var(--card-muted); }
+  .empty { color: var(--card-muted); font-size: 13px; font-weight: 700; }
 
   /* Tones: a class sets --tone, and badges, bars and text read it. */
-  .good { --tone: var(--good); }
-  .warning { --tone: var(--warning); }
-  .critical { --tone: var(--critical); }
-  .neutral, .muted-tone { --tone: var(--neutral); }
-
-  .badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 3px 10px; border-radius: 999px; white-space: nowrap;
-    font-size: 12px; font-weight: 600;
-    color: var(--tone); background: color-mix(in srgb, var(--tone) 14%, transparent);
-  }
+  .good { --tone: var(--good); --tone-ink: var(--good-ink); }
+  .warning { --tone: var(--warning); --tone-ink: var(--warning-ink); }
+  .critical { --tone: var(--critical); --tone-ink: var(--critical-ink); }
+  .neutral { --tone: var(--neutral); --tone-ink: var(--neutral-ink); }
+  .accent { --tone: var(--accent); --tone-ink: var(--card-ink); }
+  .quiet { --tone: var(--card-muted); --tone-ink: var(--card-ink); }
   .toned { color: var(--tone); }
-
-  /* --- header ---------------------------------------------------------------- */
-  header { position: sticky; top: 0; z-index: 5; background: var(--bar); border-bottom: 1px solid var(--line); }
-  .bar {
-    max-width: 1440px; margin: 0 auto; min-height: 76px; padding: 10px 40px;
-    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 40px;
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 9px; border-radius: 7px; white-space: nowrap;
+    font-size: 12px; font-weight: 900;
+    color: var(--tone-ink); background: var(--tone);
+    box-shadow: 0 2px 0 rgba(10, 8, 30, 0.28);
   }
-  .who { display: flex; flex-direction: column; gap: 2px; }
-  .who-line { display: flex; align-items: center; gap: 12px; }
-  .station { font-family: var(--display); font-size: 22px; font-weight: 600; line-height: 1.1; }
-  .specialty { color: var(--ink-2); background: var(--track); }
-  .progress { flex: 1 1 320px; min-width: 240px; display: flex; flex-direction: column; gap: 8px; }
-  .progress-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; color: var(--ink-3); }
-  .progress-line b { color: var(--ink); font-family: var(--display); font-size: 16px; }
-  .world { display: flex; flex-direction: column; gap: 2px; align-items: flex-end; }
-  .live { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--tone); white-space: nowrap; }
-  .live .pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--tone); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tone) 20%, transparent); }
-
-  .track { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
-  .track > span { display: block; height: 100%; border-radius: inherit; background: var(--ink); }
-
-  /* --- verdict and outcome ----------------------------------------------------------- */
-  .verdict {
-    display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: 14px;
-    background: color-mix(in srgb, var(--tone) 8%, transparent);
-    border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent);
+  .card {
+    background: var(--card);
+    color: var(--card-ink);
+    border-radius: 16px;
+    box-shadow: 0 3px 0 rgba(10, 8, 30, 0.35), 0 12px 22px rgba(0, 0, 0, 0.3);
   }
-  .verdict .mark {
-    width: 36px; height: 36px; flex: none; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--tone); color: var(--page); font-weight: 700; font-size: 18px;
+  .btn {
+    min-height: 40px; padding: 0 16px;
+    display: inline-flex; align-items: center; gap: 8px;
+    border-radius: 999px; border: 0;
+    background: var(--dark); color: var(--card);
+    font-family: var(--body); font-size: 13px; font-weight: 800; cursor: pointer;
+    box-shadow: 0 3px 0 rgba(10, 8, 30, 0.35);
   }
-  .verdict .words { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-  .verdict .title { font-family: var(--display); font-size: 18px; font-weight: 600; }
-  .verdict .body { color: var(--ink-2); }
+  .btn:hover { filter: brightness(1.12); }
+  .link { background: none; border: 0; padding: 0; min-height: 0; color: var(--water-line); font-size: 12.5px; font-weight: 800; cursor: pointer; }
+  .link:hover { text-decoration: underline; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-  /* --- cards ---------------------------------------------------------------------------- */
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; min-width: 0; }
-  .card.pad { padding: 22px; display: flex; flex-direction: column; gap: 14px; }
-  .card.alarm { border-color: color-mix(in srgb, var(--critical) 45%, transparent); }
-  .card-head { display: flex; align-items: center; gap: 8px; }
-  .card-head .badge { margin-left: auto; }
-  .card-title { font-family: var(--display); font-size: 16px; font-weight: 600; text-transform: capitalize; }
-  .big { display: flex; align-items: baseline; gap: 6px; }
-  .big .value { font-family: var(--display); font-size: 52px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
-  .facts { display: grid; gap: 8px; }
-  .facts.two { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 8px; }
-  .facts.four { grid-template-columns: repeat(4, minmax(0, 1fr)); padding-top: 12px; border-top: 1px solid var(--line-soft); }
-  .fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .fact .v { font-weight: 600; font-variant-numeric: tabular-nums; }
-  .facts.two .fact .v { font-size: 16px; }
-  .fact .note { color: var(--muted); font-size: 12px; }
-  .alert { padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--tone); background: color-mix(in srgb, var(--tone) 12%, transparent); }
+  /* --- the tape ------------------------------------------------------------------- */
+  .tape { position: absolute; height: 19px; border-radius: 2px; background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.22) 0 5px, rgba(255,255,255,0) 5px 10px); pointer-events: none; }
 
-  .vitals { display: grid; gap: 24px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .lower { display: grid; gap: 24px; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); align-items: start; }
+  /* --- planet icons: the illustrated stickers, borrowed at every size ------------------ */
+  .orbicon { display: inline-flex; flex: none; border-radius: 50%; border-style: solid; border-color: #fffaf0; overflow: hidden; box-shadow: 0 2px 4px rgba(20, 14, 50, 0.4); }
+  .orbicon svg { display: block; }
+  .orbicon.ocean, .home-orb.ocean, .planet-orb.ocean { background: var(--water); }
+  .orbicon.farm, .home-orb.farm, .planet-orb.farm { background: var(--food); }
+  .orbicon.forge, .home-orb.forge, .planet-orb.forge { background: var(--components); }
+  .orbicon.rock, .home-orb.rock, .planet-orb.rock { background: var(--rock); }
+  .dots { display: inline-flex; gap: 3px; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .dot.water { background: var(--water-line); } .dot.food { background: var(--food-line); } .dot.components { background: var(--components-line); }
+
+  /* --- header ---------------------------------------------------------------------- */
+  .topbar { position: sticky; top: 0; z-index: 5; background: var(--page); border-bottom: 1px solid rgba(253, 243, 225, 0.12); }
+  .bar { min-height: 72px; padding: 8px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+  .wordmark { font-family: var(--display); font-size: 26px; color: var(--card); text-shadow: 2.5px 2.5px 0 var(--pink); }
+  .divider { width: 2px; height: 28px; border-radius: 1px; background: rgba(253, 243, 225, 0.18); }
+  .us { display: flex; align-items: center; gap: 9px; }
+  .us .id { font-family: var(--display); font-size: 18px; color: var(--card); }
+  .progress { flex: 1 1 280px; min-width: 220px; display: flex; align-items: center; gap: 12px; font-size: 12px; font-weight: 800; }
+  .progress b { color: var(--card); }
+  .track { position: relative; flex: 1; height: 0; border-top: 3px dashed var(--track); }
+  .track .fill { position: absolute; left: 0; top: -1.5px; height: 3px; border-radius: 2px; background: var(--warning); }
+  .track .marker { position: absolute; top: -10px; transform: translateX(-50%); filter: drop-shadow(0 2px 2px rgba(0,0,0,.45)); }
+  .track .flag { position: absolute; right: -2px; top: -13px; }
+  .live { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 900; color: var(--tone); white-space: nowrap; }
+  .live .pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--tone); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tone) 25%, transparent); }
+  .verline { font-size: 12px; font-weight: 800; color: var(--muted); }
+
+  /* --- layout ------------------------------------------------------------------------ */
+  main, footer, .waiting { position: relative; z-index: 1; }
+  .layout {
+    display: grid;
+    grid-template-columns: clamp(270px, 22vw, 320px) minmax(0, 1fr) clamp(300px, 25vw, 356px);
+    grid-template-areas: "cargo center agent";
+    gap: 18px;
+    padding: 16px 24px 22px;
+    height: calc(100vh - 73px);
+  }
+  .layout.dimmed { opacity: 0.55; transition: opacity 0.3s; }
+  .cargo { grid-area: cargo; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow-y: auto; padding: 2px 3px; }
+  .center { grid-area: center; display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; }
+  .agent { grid-area: agent; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
   @media (max-width: 1180px) {
-    .vitals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .lower { grid-template-columns: minmax(0, 1fr); }
+    .layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "center center" "cargo agent"; height: auto; }
+    .cargo, .agent, .agent .grow { overflow: visible; }
+    .map { flex: none !important; height: clamp(320px, 60vw, 600px); }
   }
-  @media (max-width: 640px) {
-    header { position: static; }
-    main { padding: 16px; }
-    .bar { padding: 10px 16px; gap: 10px 20px; }
-    .vitals { grid-template-columns: minmax(0, 1fr); }
+  @media (max-width: 760px) {
+    .layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "center" "cargo" "agent"; padding: 12px 16px 18px; gap: 16px; }
+    .topbar { position: static; }
+    .bar { padding: 10px 16px; gap: 8px 16px; }
+    .map { height: clamp(260px, 88vw, 520px); }
+    .inspector { flex-direction: column; align-items: stretch; gap: 10px; }
+    .inspector .who, .inspector .past { width: auto; }
+    .inspector .rule { display: none; }
+    .legend { justify-content: flex-start; }
   }
 
-  /* --- health and reserves -------------------------------------------------------------- */
-  .meter { height: 10px; border-radius: 5px; background: var(--track); overflow: hidden; }
-  .meter > span { display: block; height: 100%; border-radius: inherit; background: var(--tone); }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; }
-  .dot.lg { width: 10px; height: 10px; }
-  .dot.water { background: var(--water); }
-  .dot.food { background: var(--food); }
-  .dot.components { background: var(--components); }
+  /* --- verdict ------------------------------------------------------------------------- */
+  .verdict { position: relative; display: flex; align-items: center; gap: 14px; padding: 12px 20px; transform: rotate(-0.3deg); }
+  .verdict .mark { width: 34px; height: 34px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--dark); color: var(--tone); }
+  .verdict .words { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .verdict .title { font-family: var(--display); font-size: 17px; }
+  .verdict .body { font-size: 13px; font-weight: 700; color: var(--card-ink-2); }
 
-  .gauge { display: flex; flex-direction: column; gap: 6px; }
-  .gauge-head { display: flex; justify-content: space-between; align-items: baseline; }
-  .gauge-bar { position: relative; height: 10px; border-radius: 5px; background: var(--track); overflow: hidden; }
-  .gauge-bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--tone); }
-  .gauge-bar .notch { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--surface); }
-  .gauge-scale { position: relative; height: 14px; font-size: 11px; color: var(--muted); }
+  /* --- the map: a fixed 720x600 stage, scaled to fit ------------------------------------- */
+  .map { position: relative; flex: 1 1 auto; min-height: 300px; }
+  .stage { position: absolute; left: 50%; top: 50%; width: 720px; height: 600px; transform: translate(-50%, -50%) scale(var(--s, 1)); }
+  .stage > * { position: absolute; }
+  .stagestars { left: 0; top: 0; width: 720px; height: 600px; pointer-events: none; }
+  .stagestars .tw { animation: twinkle 2.6s ease-in-out infinite alternate; }
+  .lanes { left: 0; top: 0; width: 720px; height: 600px; overflow: visible; pointer-events: none; }
+  .planets { left: 0; top: 0; width: 720px; height: 600px; pointer-events: none; }
+  .planets .planet { pointer-events: auto; }
+  .lanes .flow { animation: flow 1.3s linear infinite; }
+  .ships { left: 0; top: 0; width: 720px; height: 600px; pointer-events: none; }
+  .ship { position: absolute; left: 0; top: 0; width: 26px; height: 15px; offset-rotate: auto; animation: fly 3.5s linear 1 both; filter: drop-shadow(1px 0 0 #fffaf0) drop-shadow(-1px 0 0 #fffaf0) drop-shadow(0 1px 0 #fffaf0) drop-shadow(0 -1px 0 #fffaf0) drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
+  .ship.still { animation: none; offset-distance: 50%; }
+  /* Labels keep a readable size when the stage shrinks. */
+  .scaled-text { font-size: calc(12px / max(var(--s, 1), 0.75)); }
+
+  .orbit { fill: none; }
+  .home-halo { left: 200px; top: 140px; width: 320px; height: 320px; border-radius: 50%; pointer-events: none; --halo: 91, 176, 245; background: radial-gradient(circle closest-side, rgba(var(--halo), 0) 60%, rgba(var(--halo), 0.35) 68%, rgba(var(--halo), 0) 88%); }
+  .home-halo.farm { --halo: 111, 211, 148; } .home-halo.forge { --halo: 255, 171, 94; } .home-halo.rock { --halo: 179, 169, 217; }
+  .home-alarm { left: 188px; top: 128px; width: 344px; height: 344px; border-radius: 50%; pointer-events: none; background: radial-gradient(circle closest-side, rgba(255,138,178,0) 58%, rgba(255,138,178,.45) 72%, rgba(255,138,178,0) 90%); animation: alarm 1.7s ease-in-out infinite; }
+  .home-sel { left: 208px; top: 148px; width: 304px; height: 304px; border-radius: 50%; border: 2px dashed rgba(253,243,225,0.7); pointer-events: none; }
+  .home-ring { left: 220px; top: 160px; width: 280px; height: 280px; overflow: visible; pointer-events: none; }
+  .home-ring .arc { stroke: var(--tone); transition: stroke-dasharray 0.6s ease; }
+  .home-btn { left: 256px; top: 196px; width: 208px; height: 208px; padding: 0; border: 8px solid #fffaf0; border-radius: 50%; background: none; cursor: pointer; box-shadow: 0 6px 0 rgba(10,8,30,.45), 0 16px 30px rgba(0,0,0,.4); }
+  .home-btn:focus-visible { outline-offset: 8px; }
+  .home-btn svg { width: 100%; height: 100%; display: block; }
+  .home-tag { left: 360px; top: 118px; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; padding: 7px 13px 5px; border-radius: 8px; pointer-events: none; }
+  .home-tag .dot { position: absolute; left: 50%; top: -6px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--pink); box-shadow: inset -2px -2px 0 rgba(0,0,0,.2), 0 2px 2px rgba(0,0,0,.3); }
+  .home-tag .k { font-size: 9.5px; font-weight: 900; letter-spacing: 0.12em; color: var(--card-muted); }
+  .home-tag .n { font-family: var(--display); font-size: 15px; }
+  .home-chip { left: 214px; top: 350px; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 999px; box-shadow: 0 3px 0 rgba(10,8,30,.4), 0 8px 14px rgba(0,0,0,.3); pointer-events: none; }
+  .home-chip svg { flex: none; }
+  .home-chip .v { font-family: var(--display); font-size: 19px; color: var(--tone-ink); }
+  .home-chip .of { font-size: 11px; font-weight: 800; color: var(--card-muted); }
+  .home-label { left: 360px; top: 424px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; line-height: 1.3; pointer-events: none; white-space: nowrap; }
+  .home-label .n { font-family: var(--display); font-size: 15px; color: var(--card); }
+  .home-label .w { font-size: 12px; font-weight: 800; color: var(--accent); }
+
+  .planet { position: absolute; padding: 0; border: 5px solid #fffaf0; border-radius: 50%; background: none; cursor: pointer; box-shadow: 0 4px 0 rgba(10,8,30,.45), 0 10px 18px rgba(0,0,0,.35); }
+  .planet:focus-visible { outline-offset: 8px; border-radius: 50%; }
+  .planet svg { width: 100%; height: 100%; display: block; }
+  .ping { position: absolute; inset: -6px; border-radius: 50%; border: 2.5px solid var(--accent); animation: ping 2.2s ease-out infinite; }
+  .sel-ring { position: absolute; inset: -9px; border-radius: 50%; border: 2px dashed var(--card); }
+  .plabel { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 7px; padding: 4px 11px 4px 8px; border-radius: 8px; box-shadow: 0 2px 0 rgba(10,8,30,.4); white-space: nowrap; pointer-events: none; }
+  .plabel.below { top: calc(100% + 8px); }
+  .plabel.above { bottom: calc(100% + 8px); }
+  .plabel .bullet { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dark); }
+  .plabel .cols { display: flex; flex-direction: column; line-height: 1.15; }
+  .plabel .pline { display: inline-flex; align-items: center; gap: 5px; }
+  .plabel .pid { font-family: var(--display); font-size: 14px; }
+  .plabel .rel { font-size: 12px; font-weight: 800; color: var(--card-muted); }
+  .plabel.compact .rel { display: none; }
+
+  /* --- inspector and legend ---------------------------------------------------------------- */
+  .inspector { min-height: 78px; padding: 11px 20px; display: flex; align-items: center; gap: 14px; transform: rotate(0.3deg); }
+  .inspector .who { width: 188px; flex: none; display: flex; align-items: center; gap: 10px; }
+  .inspector .name { font-family: var(--display); font-size: 17px; line-height: 1.3; }
+  .inspector .tags { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 12px; font-weight: 800; color: var(--card-muted); }
+  .inspector .tags span { display: inline-flex; align-items: center; gap: 5px; }
+  .inspector .tags b { font-weight: 900; color: var(--card-ink-2); }
+  .inspector .rule { width: 0; height: 44px; flex: none; border-left: 2px dashed var(--line); }
+  .inspector .now { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  /* Single line, always: a count going from one digit to two must not be what
+     decides the bar's height.  There is room for it; ellipsis is only a
+     backstop for whatever number someday does not fit. */
+  .inspector .now .t { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--display); font-size: 15px; color: var(--tone-ink); }
+  .inspector .terms { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; font-size: 13px; font-weight: 800; }
+  /* The one dynamic count in this row: give it room to shrink and ellipsize on
+     its own, rather than let its own wrapping change the bar's height. The
+     terms chips beside it (a fixed "we get / we give") keep their own size. */
+  .inspector .terms .muted { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .inspector .past { width: 128px; flex: none; display: flex; flex-direction: column; line-height: 1.25; }
+  .inspector .past .v { font-family: var(--display); font-size: 18px; }
+  .legend { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 20px; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+  .legend > span { display: inline-flex; align-items: center; gap: 7px; }
+
+  /* --- bundles of resources ------------------------------------------------------------------ */
+  .bundle { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .chip b { font-weight: 900; font-variant-numeric: tabular-nums; }
+  .chip .name { color: var(--card-muted); }
+  .chip.boxed { padding: 2px 9px; border-radius: 7px; background: #f3e3c6; font-size: 13px; }
+
+  /* --- cargo hold ------------------------------------------------------------------------------ */
+  .cargo-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0 5px; }
+  .cargo-head .title { font-family: var(--display); font-size: 17px; color: var(--card); }
+  .cargo-head .sub { font-size: 12px; font-weight: 800; color: var(--ink-2); }
+  .res { position: relative; padding: 13px 15px 11px; display: flex; flex-direction: column; gap: 7px; flex: none; }
+  .res[data-resource="water"] { transform: rotate(-0.6deg); } .res[data-resource="water"] .tape { background-color: rgba(255,138,178,0.82); }
+  .res[data-resource="food"] { transform: rotate(0.5deg); } .res[data-resource="food"] .tape { background-color: rgba(120,220,180,0.82); }
+  .res[data-resource="components"] { transform: rotate(-0.4deg); } .res[data-resource="components"] .tape { background-color: rgba(255,214,90,0.85); }
+  .res .tape { left: 50%; top: -9px; width: 74px; transform: translateX(-50%) rotate(-3deg); }
+  .res-head { display: flex; align-items: center; gap: 9px; }
+  .res-head .badge { margin-left: auto; }
+  .res-name { font-family: var(--display); font-size: 18px; }
+  .res-star { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 900; color: #8a5a00; }
+  .amount-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .amount { font-family: var(--display); font-size: 32px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .amount-note { font-size: 12.5px; font-weight: 700; color: var(--card-muted); }
+  .net { font-size: 13px; font-weight: 900; color: var(--card-ink-2); }
+  .gauge { display: flex; flex-direction: column; gap: 4px; }
+  .gauge-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-weight: 800; }
+  .gauge-bar { position: relative; height: 14px; border-radius: 999px; background: #eadbbd; overflow: hidden; }
+  .gauge-bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background-image: repeating-linear-gradient(-45deg, var(--tone) 0 6px, color-mix(in srgb, var(--tone) 82%, black) 6px 12px); }
+  .gauge-bar .notch { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(42,36,70,.55); }
+  .gauge-scale { position: relative; height: 13px; font-size: 10.5px; line-height: 13px; font-weight: 800; color: var(--card-muted); }
   .gauge-scale span { position: absolute; transform: translateX(-50%); }
   .gauge-scale span:first-child { transform: none; }
   .gauge-scale span:last-child { transform: none; right: 0; }
-
   .spark-wrap { position: relative; }
-  .spark { display: block; width: 100%; height: 56px; overflow: visible; }
-  .spark-empty { height: 56px; display: flex; align-items: center; color: var(--muted); font-size: 12px; }
-  .tooltip {
-    position: absolute; pointer-events: none; z-index: 3;
-    background: var(--raised); border: 1px solid var(--line); border-radius: 6px;
-    padding: 4px 8px; font-size: 12px; white-space: nowrap; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  .spark { display: block; width: 100%; height: 26px; overflow: visible; }
+  .spark-empty { height: 26px; display: flex; align-items: center; color: var(--card-muted); font-size: 12px; font-weight: 700; }
+  .tooltip { position: absolute; pointer-events: none; z-index: 3; background: var(--dark); color: var(--card); border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+  .minis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding-top: 7px; border-top: 2px dashed var(--line); line-height: 1.2; }
+  .minis .k { font-size: 10px; font-weight: 900; letter-spacing: 0.08em; color: var(--card-muted); }
+  .minis .v { font-family: var(--display); font-size: 16px; }
+  .alert { padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 900; color: var(--tone-ink); background: var(--tone); }
+
+  /* --- agent panel --------------------------------------------------------------------------- */
+  .agent-head { display: flex; align-items: center; gap: 12px; }
+  .agent section { padding: 15px 18px; display: flex; flex-direction: column; gap: 10px; border-bottom: 2px dashed var(--line); }
+  .agent section:first-child { padding-top: 18px; gap: 12px; }
+  .agent section:last-child { border-bottom: 0; }
+  /* Highlights give way first, so the tick strip below them always shows. */
+  .agent .grow { flex: 1 1 auto; min-height: 0; overflow-y: auto; gap: 9px; }
+  .row-between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .headline { font-family: var(--display); font-size: 21px; line-height: 1.2; }
+  .goal { display: flex; gap: 10px; align-items: center; padding: 7px 10px; border-radius: 12px; background: #f3e3c6; }
+  .goal.buy { background: #fff0b8; }
+  .goal .txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .goal .row1 { display: flex; align-items: center; gap: 8px; }
+  .goal .verb { padding: 0 7px; border-radius: 5px; font-size: 11px; font-weight: 900; letter-spacing: 0.08em; background: var(--neutral); color: var(--neutral-ink); }
+  .goal .verb.buy { background: var(--warning); color: var(--warning-ink); }
+  .goal .res-word { font-family: var(--display); font-size: 15px; }
+  .goal .text { font-size: 12.5px; font-weight: 700; color: var(--card-ink-2); }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .stat { display: flex; flex-direction: column; line-height: 1.2; }
+  .stat .v { font-family: var(--display); font-size: 27px; color: var(--tone-ink); }
+  .stat .k { font-size: 12px; font-weight: 800; color: var(--card-muted); }
+  .problem { padding: 7px 12px; border-radius: 10px; font-size: 12.5px; font-weight: 800; color: var(--tone-ink); background: var(--tone); }
+  .event { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; }
+  .event .icon { flex: none; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--tone-ink); background: var(--tone); box-shadow: 0 1px 0 rgba(42,36,70,.3); }
+  .event .text { flex: 1; min-width: 0; color: var(--card-ink); }
+  .event .t { font-size: 11px; font-weight: 900; color: var(--card-muted); }
+  .strip { position: relative; height: 48px; display: flex; gap: 4px; }
+  .strip .base { position: absolute; left: 0; right: 0; top: 23px; height: 2px; background: var(--line); }
+  .strip .col { flex: 1; display: flex; flex-direction: column; align-items: center; }
+  .strip .up, .strip .down { height: 24px; display: flex; }
+  .strip .up { align-items: flex-end; } .strip .down { align-items: flex-start; }
+  .strip .up span, .strip .down span { display: block; width: 10px; max-width: 100%; }
+  .strip .up span { background: var(--food-line); border-radius: 3px 3px 0 0; }
+  .strip .down span { background: #e0485f; border-radius: 0 0 3px 3px; }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 4px; }
+
+  /* --- the full action log ------------------------------------------------------------------- */
+  dialog.log { width: min(780px, calc(100vw - 32px)); max-height: min(82vh, 900px); padding: 0; border: 0; border-radius: 18px; color: var(--card-ink); background: var(--card); display: none; flex-direction: column; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,.5); }
+  dialog.log[open] { display: flex; }
+  dialog.log::backdrop { background: rgba(20, 16, 46, 0.68); }
+  .log-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px 12px 22px; border-bottom: 2px dashed var(--line); }
+  .log-head .sub { flex: 1; color: var(--card-muted); font-size: 12.5px; font-weight: 800; }
+  .log-body { flex: 1; min-height: 0; overflow-y: auto; }
+  .tick-head { position: sticky; top: 0; z-index: 1; padding: 8px 22px; display: flex; gap: 10px; align-items: baseline; background: #f3e3c6; border-bottom: 1px solid var(--line); }
+  .tick-head .right { margin-left: auto; color: var(--card-muted); font-size: 12px; font-weight: 800; }
+  .act { padding: 12px 22px; display: flex; gap: 16px; align-items: flex-start; border-bottom: 1px dashed var(--line); }
+  .act .state { width: 88px; flex: none; }
+  .act .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+  .act .line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+  .act .kind { font-size: 11px; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 7px; border-radius: 6px; background: var(--dark); color: var(--card); }
+  .act .who { font-weight: 900; }
+  .act .why { color: var(--card-ink-2); font-size: 13px; font-weight: 700; }
+  .act .detail { font-size: 12px; font-weight: 800; color: var(--tone-ink); overflow-wrap: anywhere; }
+  .act .score { width: 52px; flex: none; text-align: right; font-family: var(--display); font-variant-numeric: tabular-nums; }
+  .rid { color: var(--card-muted); font-size: 11px; font-weight: 700; overflow-wrap: anywhere; }
+  .arrow { flex: none; color: var(--card-muted); }
+
+  .waiting { text-align: center; padding: 120px 16px; color: var(--ink-2); }
+  .waiting b { display: block; color: var(--card); font-family: var(--display); font-size: 22px; margin-bottom: 8px; }
+  footer { padding: 0 24px 12px; color: var(--muted); font-size: 12px; font-weight: 700; }
+
+  @keyframes fly { 0% { offset-distance: 0%; opacity: 0; } 12% { opacity: 1; } 85% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+  @keyframes ping { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(1.55); opacity: 0; } }
+  @keyframes flow { to { stroke-dashoffset: -20; } }
+  @keyframes alarm { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+  @keyframes twinkle { from { opacity: 0.45; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    .stagestars .tw, .lanes .flow, .ping, .home-alarm { animation: none; }
   }
-
-  /* --- resource amounts ---------------------------------------------------------------- */
-  .bundle { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
-  .chip { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-  .chip b { font-weight: 600; font-variant-numeric: tabular-nums; }
-  .chip .name { color: var(--ink-2); }
-  .chip.boxed { padding: 2px 9px; border-radius: 8px; background: var(--line-soft); font-size: 13px; }
-  .arrow { flex: none; color: var(--muted); }
-
-  /* --- agent activity ------------------------------------------------------------------- */
-  .panel-head { padding: 20px 22px 16px; display: flex; flex-direction: column; gap: 14px; border-bottom: 1px solid var(--line); }
-  .panel-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-  .panel-top .sub { color: var(--ink-3); font-size: 13px; }
-  .slots-used { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
-  .slots-used .track { width: 140px; height: 4px; }
-  .slots-used .track > span { background: var(--ink-3); }
-  .tally { display: flex; flex-wrap: wrap; gap: 8px; }
-  /* A busy agent decides dozens of things a minute; keep the page's shape. */
-  .feed { max-height: 760px; overflow-y: auto; }
-  .tick-head {
-    position: sticky; top: 0; z-index: 1;
-    padding: 10px 22px; display: flex; gap: 10px; align-items: baseline;
-    background: color-mix(in srgb, var(--surface) 92%, white); border-bottom: 1px solid var(--line-soft);
-  }
-  .tick-head .right { margin-left: auto; color: var(--muted); font-size: 12px; }
-  .act { padding: 14px 22px; display: flex; gap: 16px; align-items: flex-start; border-bottom: 1px solid var(--line-soft); }
-  .act .state { width: 96px; flex: none; }
-  .act .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-  .act .line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
-  .kind {
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
-    padding: 2px 7px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.14); color: var(--ink-2);
-  }
-  .act .who { font-weight: 600; }
-  .act .why { color: var(--ink-3); font-size: 13px; }
-  .act .detail { font-size: 12px; font-weight: 500; color: var(--tone); overflow-wrap: anywhere; }
-  .act .score { width: 56px; flex: none; display: flex; flex-direction: column; align-items: flex-end; }
-  .act .score .v { font-family: var(--display); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .rid { color: var(--muted); font-family: var(--mono); font-size: 11px; overflow-wrap: anywhere; }
-  .word { color: var(--muted); font-size: 13px; }
-
-  /* --- market ---------------------------------------------------------------------------- */
-  .market { display: flex; flex-direction: column; }
-  .market section { padding: 18px 22px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--line); }
-  .market section:first-child { padding-top: 20px; }
-  .market section:last-child { border-bottom: 0; padding-bottom: 20px; }
-  .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-  .section-head > h2, .section-head > h3, .section-head > span { white-space: nowrap; }
-  .section-head .dim { font-size: 13px; }
-  .offer-card {
-    padding: 14px 16px; border-radius: 12px; background: var(--raised); border: 1px solid var(--line-soft);
-    display: flex; flex-direction: column; gap: 10px;
-  }
-  .offer-card .top { display: flex; align-items: baseline; gap: 8px; }
-  .offer-card .top .left { margin-left: auto; font-size: 12px; font-weight: 600; }
-  .offer-card .sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .offer-card .sides .chip { font-size: 15px; }
-  .row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line-soft); font-size: 13px; }
-  .row .end { margin-left: auto; font-size: 12px; white-space: nowrap; }
-  .row .tick { width: 44px; flex: none; color: var(--muted); font-family: var(--mono); font-size: 12px; }
-  .row .with { width: 64px; flex: none; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .slotbar { display: flex; gap: 2px; flex: none; }
-  .slotbar span { flex: 1; min-width: 2px; height: 8px; border-radius: 2px; background: var(--track); }
-  .slotbar span.on { background: var(--ink); }
-  .stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px; background: var(--track); }
-  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--ink-3); }
-  .legend b { color: var(--ink); font-variant-numeric: tabular-nums; }
-  .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
-
-  /* --- history table --------------------------------------------------------------------- */
-  details.card { padding: 16px 22px; }
-  details summary { cursor: pointer; font-family: var(--display); font-weight: 600; }
-  details[open] summary { margin-bottom: 10px; }
-  .scroll { overflow-x: auto; max-height: 420px; overflow-y: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: right; font-weight: 500; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
-       padding: 6px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); }
-  td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--line-soft); font-variant-numeric: tabular-nums; }
-
-  .waiting { text-align: center; padding: 80px 16px; color: var(--ink-3); }
-  .waiting b { display: block; color: var(--ink); font-family: var(--display); font-size: 20px; margin-bottom: 6px; }
-  footer { max-width: 1440px; margin: 0 auto; padding: 0 40px 24px; color: var(--muted); font-size: 12px; }
 </style>
 </head>
 <body>
-<header><div class="bar" id="bar"></div></header>
-<main id="main">
-  <div class="waiting" id="waiting"><b>Waiting for the first state</b>The client is connecting, or the game has not sent a snapshot yet.</div>
-  <div id="content" hidden style="display: contents">
-    <section id="verdict"></section>
-    <section class="vitals" id="vitals"></section>
-    <section class="lower">
-      <article class="card" id="actions"></article>
-      <article class="card market" id="market"></article>
-    </section>
-    <details class="card" id="history"></details>
-  </div>
+
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+<defs>
+<symbol id="c-ocean" viewBox="0 0 100 100">
+<path d="M8 16 C22 8 36 12 46 7" fill="none" stroke="#8fcbff" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
+<path d="M16 30 C22 17 42 15 50 23 C58 31 52 42 42 44 C32 46 30 57 21 55 C11 53 11 40 16 30 Z" fill="#a8daff" stroke="#2f7fcf" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
+<path d="M23 33 C27 25 39 23 43 29 C46 34 39 37 33 38 C27 39 21 41 23 33 Z" fill="none" stroke="#6fb4f0" vector-effect="non-scaling-stroke"></path>
+<path d="M57 58 C65 49 82 53 87 63 C91 73 81 85 70 82 C61 80 66 72 57 70 C51 68 51 62 57 58 Z" fill="#a8daff" stroke="#2f7fcf" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
+<path d="M63 62 C69 58 78 61 80 67 C82 73 76 77 70 75 C66 74 68 69 63 67 Z" fill="none" stroke="#6fb4f0" vector-effect="non-scaling-stroke"></path>
+<ellipse cx="32" cy="77" rx="8" ry="4.5" fill="#a8daff" stroke="#2f7fcf" vector-effect="non-scaling-stroke"></ellipse>
+<path d="M68 16 C76 19 82 25 85 33" fill="none" stroke="#8fcbff" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
+<path d="M-10 -10 H110 V110 H-10 Z M-14 40 A54 54 0 1 0 94 40 A54 54 0 1 0 -14 40 Z" fill="#1d3f7a" fill-opacity="0.2" fill-rule="evenodd"></path>
+<ellipse cx="30" cy="21" rx="10" ry="5" transform="rotate(-32 30 21)" fill="#ffffff" fill-opacity="0.8"></ellipse>
+</symbol>
+<symbol id="c-farm" viewBox="0 0 100 100">
+<path d="M-5 58 C14 50 30 66 50 58 S86 48 105 56" fill="none" stroke="#2f9e5e" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
+<path d="M20 24 C26 17 37 19 38 27 C39 35 29 38 24 34 C19 31 16 28 20 24 Z" fill="#cbf6d8" stroke="#3a9e63" vector-effect="non-scaling-stroke"></path>
+<path d="M55 28 C60 23 69 26 69 33 C69 40 60 42 57 38 C54 35 52 31 55 28 Z" fill="#cbf6d8" stroke="#3a9e63" vector-effect="non-scaling-stroke"></path>
+<path d="M38 42 C42 39 49 41 49 46 C49 51 43 52 40 49 C37 47 36 44 38 42 Z" fill="#cbf6d8" stroke="#3a9e63" vector-effect="non-scaling-stroke"></path>
+<path d="M26 76 C31 71 40 72 41 78 C42 84 34 87 30 84 C26 82 23 79 26 76 Z" fill="#cbf6d8" stroke="#3a9e63" vector-effect="non-scaling-stroke"></path>
+<path d="M64 74 C69 69 78 71 78 77 C78 83 70 85 66 81 C63 79 62 76 64 74 Z" fill="#cbf6d8" stroke="#3a9e63" vector-effect="non-scaling-stroke"></path>
+<circle cx="80" cy="44" r="4.5" fill="#cbf6d8" stroke="#3a9e63" vector-effect="non-scaling-stroke"></circle>
+<path d="M-10 -10 H110 V110 H-10 Z M-14 40 A54 54 0 1 0 94 40 A54 54 0 1 0 -14 40 Z" fill="#1d5a3a" fill-opacity="0.2" fill-rule="evenodd"></path>
+<ellipse cx="30" cy="21" rx="10" ry="5" transform="rotate(-32 30 21)" fill="#ffffff" fill-opacity="0.8"></ellipse>
+</symbol>
+<symbol id="c-forge" viewBox="0 0 100 100">
+<path d="M-5 28 C15 22 35 34 55 28 S90 22 105 28 L105 40 C85 46 70 36 50 42 S15 46 -5 40 Z" fill="#f07c2e" stroke="#c95a1a" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
+<path d="M-5 62 C20 56 35 68 55 62 S88 56 105 62 L105 72 C85 78 65 68 45 74 S10 76 -5 72 Z" fill="#f07c2e" stroke="#c95a1a" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
+<path d="M10 16 C24 12 40 18 56 14" fill="none" stroke="#ffe3c0" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
+<path d="M28 51 C42 47 60 53 80 49" fill="none" stroke="#ffe3c0" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
+<path d="M18 86 C32 82 48 88 66 84" fill="none" stroke="#ffe3c0" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
+<path d="M-10 -10 H110 V110 H-10 Z M-14 40 A54 54 0 1 0 94 40 A54 54 0 1 0 -14 40 Z" fill="#7a2e0a" fill-opacity="0.18" fill-rule="evenodd"></path>
+<ellipse cx="30" cy="21" rx="10" ry="5" transform="rotate(-32 30 21)" fill="#ffffff" fill-opacity="0.75"></ellipse>
+</symbol>
+<symbol id="c-rock" viewBox="0 0 100 100">
+<circle cx="30" cy="34" r="10" fill="#8f84c4" stroke="#6d62a3" vector-effect="non-scaling-stroke"></circle>
+<circle cx="66" cy="24" r="6" fill="#8f84c4" stroke="#6d62a3" vector-effect="non-scaling-stroke"></circle>
+<circle cx="58" cy="60" r="13" fill="#8f84c4" stroke="#6d62a3" vector-effect="non-scaling-stroke"></circle>
+<circle cx="24" cy="70" r="6.5" fill="#8f84c4" stroke="#6d62a3" vector-effect="non-scaling-stroke"></circle>
+<circle cx="83" cy="50" r="5" fill="#8f84c4" stroke="#6d62a3" vector-effect="non-scaling-stroke"></circle>
+<circle cx="42" cy="86" r="5" fill="#8f84c4" stroke="#6d62a3" vector-effect="non-scaling-stroke"></circle>
+<path d="M-10 -10 H110 V110 H-10 Z M-14 40 A54 54 0 1 0 94 40 A54 54 0 1 0 -14 40 Z" fill="#2a2446" fill-opacity="0.18" fill-rule="evenodd"></path>
+<ellipse cx="30" cy="17" rx="8" ry="4" transform="rotate(-32 30 17)" fill="#ffffff" fill-opacity="0.7"></ellipse>
+</symbol>
+<symbol id="c-star" viewBox="-12 -12 24 24">
+<path d="M0 -10 L3 -3.4 L10 -3.1 L4.6 1.7 L6.4 8.8 L0 4.8 L-6.4 8.8 L-4.6 1.7 L-10 -3.1 L-3 -3.4 Z" stroke-width="2.2" stroke-linejoin="round"></path>
+</symbol>
+<symbol id="c-rocket" viewBox="0 0 34 20">
+<path d="M5.5 10 L0 5.5 L1.8 10 L0 14.5 Z" fill="#ffc83a"></path>
+<path d="M9 5 L4.5 1 L4.5 7 Z" fill="#ff7aa5"></path>
+<path d="M9 15 L4.5 19 L4.5 13 Z" fill="#ff7aa5"></path>
+<path d="M6 4.5 H21 C27 4.5 31 7.5 33 10 C31 12.5 27 15.5 21 15.5 H6 C5 15.5 4.5 15 4.5 14 V6 C4.5 5 5 4.5 6 4.5 Z" fill="#fdf3e1" stroke="#2a2446" stroke-width="1.3" stroke-linejoin="round"></path>
+<rect x="8.5" y="7" width="8" height="6" rx="1.8"></rect>
+<circle cx="23.5" cy="10" r="2.6" fill="#9fd4ff" stroke="#2a2446" stroke-width="1.1"></circle>
+</symbol>
+</defs>
+</svg>
+
+<header class="topbar"><div class="bar" id="bar"></div></header>
+<div class="waiting" id="waiting"><b>Waiting for the first state</b>The client is connecting, or the game has not sent a snapshot yet.</div>
+<main class="layout" id="main" hidden>
+  <section class="cargo" id="cargo" aria-label="Cargo hold"></section>
+  <section class="center" aria-label="System map">
+    <div id="verdict"></div>
+    <div class="map" id="map">
+      <div class="stage" id="stage">
+        <svg class="stagestars" viewBox="0 0 720 600" aria-hidden="true">
+          <g class="tw"><use href="#c-star" x="26" y="44" width="22" height="22" fill="#ffd35a" stroke="#ffd35a" transform="rotate(-12 40 60)"></use></g>
+          <use href="#c-star" x="556" y="34" width="16" height="16" fill="#ff8ab2" stroke="#ff8ab2"></use>
+          <g class="tw"><use href="#c-star" x="672" y="452" width="18" height="18" fill="#9fd4ff" stroke="#9fd4ff"></use></g>
+          <use href="#c-star" x="26" y="466" width="15" height="15" fill="#fdf3e1" stroke="#fdf3e1"></use>
+          <g class="tw"><use href="#c-star" x="118" y="540" width="16" height="16" fill="#ff8ab2" stroke="#ff8ab2"></use></g>
+          <use href="#c-star" x="160" y="270" width="13" height="13" fill="#ffd35a" stroke="#ffd35a"></use>
+          <circle cx="156" cy="136" r="2.6" fill="#fdf3e1" fill-opacity="0.5"></circle>
+          <circle cx="676" cy="108" r="2.2" fill="#fdf3e1" fill-opacity="0.55"></circle>
+          <circle cx="590" cy="546" r="2.6" fill="#fdf3e1" fill-opacity="0.4"></circle>
+          <circle cx="540" cy="296" r="2.2" fill="#fdf3e1" fill-opacity="0.5"></circle>
+        </svg>
+        <svg class="lanes" viewBox="0 0 720 600" aria-hidden="true">
+          <ellipse class="orbit" cx="360" cy="300" rx="346" ry="276" stroke="rgba(253,243,225,0.07)"></ellipse>
+          <ellipse class="orbit" cx="360" cy="300" rx="300" ry="236" stroke="rgba(253,243,225,0.25)" stroke-dasharray="2 7" stroke-linecap="round"></ellipse>
+          <ellipse class="orbit" cx="360" cy="300" rx="214" ry="168" stroke="rgba(253,243,225,0.06)"></ellipse>
+          <path id="lane-trade" fill="none" stroke="rgba(253,243,225,0.45)" stroke-width="2" stroke-linecap="round"></path>
+          <path id="lane-out" fill="none" stroke="rgba(253,243,225,0.85)" stroke-width="1.6" stroke-dasharray="6 6"></path>
+          <path id="lane-heads" fill="rgba(253,243,225,0.9)"></path>
+          <path id="lane-in" class="flow" fill="none" stroke="#9fd4ff" stroke-width="3" stroke-linecap="round" stroke-dasharray="0.5 7.5"></path>
+        </svg>
+        <div class="ships" id="ships" aria-hidden="true"></div>
+        <div class="home-halo" id="home-halo"></div>
+        <div class="home-alarm" id="home-alarm" hidden></div>
+        <div class="home-sel" id="home-sel" hidden></div>
+        <svg class="home-ring" viewBox="0 0 280 280" aria-hidden="true">
+          <circle cx="140" cy="140" r="134" fill="none" stroke="rgba(253,243,225,0.35)" stroke-dasharray="1 9.5"></circle>
+          <circle cx="140" cy="140" r="124" fill="none" stroke="rgba(253,243,225,0.14)" stroke-width="7"></circle>
+          <circle id="home-arc" class="arc good" cx="140" cy="140" r="124" fill="none" stroke-width="7" stroke-linecap="round" stroke-dasharray="0 779.1" transform="rotate(-90 140 140)"></circle>
+        </svg>
+        <button type="button" class="home-btn" id="home-btn" aria-pressed="false"></button>
+        <div class="home-tag card scaled-text" id="home-tag"><span class="dot" aria-hidden="true"></span><span class="k">YOU ARE HERE</span><span class="n" id="home-name-tag"></span></div>
+        <div class="home-chip card scaled-text good" id="home-chip"></div>
+        <div class="home-label scaled-text"><span class="n" id="home-name"></span><span class="w" id="home-world"></span></div>
+        <div class="planets" id="planets"></div>
+      </div>
+    </div>
+    <div class="inspector card" id="inspector"></div>
+    <div class="legend">
+      <span><svg width="26" height="8" viewBox="0 0 26 8" aria-hidden="true"><line x1="1" y1="4" x2="25" y2="4" stroke="#fdf3e1" stroke-width="2.5" stroke-dasharray="5 4" stroke-linecap="round"></line></svg>our offer</span>
+      <span><svg width="26" height="8" viewBox="0 0 26 8" aria-hidden="true"><line x1="2" y1="4" x2="24" y2="4" stroke="#9fd4ff" stroke-width="4.5" stroke-dasharray="0.5 7" stroke-linecap="round"></line></svg>offer for us</span>
+      <span><svg width="24" height="14" viewBox="0 0 34 20" aria-hidden="true" style="filter: drop-shadow(1px 0 0 #fffaf0) drop-shadow(-1px 0 0 #fffaf0) drop-shadow(0 1px 0 #fffaf0) drop-shadow(0 -1px 0 #fffaf0)"><use href="#c-rocket" width="34" height="20" fill="#4cb86a"></use></svg>rocket = trade just settled</span>
+      <span><span class="orbicon ocean" style="width:14px;height:14px;border-width:2px"></span><span class="orbicon farm" style="width:14px;height:14px;border-width:2px"></span><span class="orbicon forge" style="width:14px;height:14px;border-width:2px"></span>colour = what a planet sells</span>
+    </div>
+  </section>
+  <aside class="agent card" id="agent" aria-label="Agent"></aside>
 </main>
+<dialog class="log" id="log" aria-labelledby="log-title">
+  <div class="log-head">
+    <h2 id="log-title" style="font-size:18px">Full action log</h2>
+    <span class="sub" id="log-sub"></span>
+    <button type="button" class="btn" id="log-close">Close</button>
+  </div>
+  <div class="log-body" id="log-body"></div>
+</dialog>
 <footer id="footer"></footer>
 
 <script>
 "use strict";
 
-// --- state ----------------------------------------------------------------------
-let data = null;
+// --- state -------------------------------------------------------------------------
+let data = null;       // what is on screen
+let latest = null;     // the newest view; differs from data only while paused
+let paused = false;
 let socketOpen = false;
 let lastMessageAt = 0;
-let historyOpen = false;
+let selected = null;   // a station ID, "home", or null
+let runId = null;
+let seenTrades = new Set();
+let firstBatch = true;
+let planetKey = "";
+let planetEls = new Map();
+let layout = new Map();
 
 const RESOURCES = ["water", "food", "components"];
+const KIND = { water: "ocean", food: "farm", components: "forge" };
+const WORLD = { water: "water world", food: "farm world", components: "forge world" };
+// The map is drawn on a fixed stage and scaled to fit; every coordinate below is on it.
+const STAGE = { w: 720, h: 600, cx: 360, cy: 300, rx: 300, ry: 236, laneR: 136, ringR: 124 };
+const RING = 2 * Math.PI * STAGE.ringR;
+const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)");
+const SVG_NS = "http://www.w3.org/2000/svg";
 
 const STATUS = {
   queued:   { icon: "○", label: "Queued",   tone: "neutral" },
@@ -286,43 +519,65 @@ const STATUS = {
   error:    { icon: "!", label: "Error",    tone: "critical" },
   skipped:  { icon: "–", label: "Skipped",  tone: "neutral" },
 };
-const TALLY_WORD = { ok: "done", sent: "sent", failed: "failed", rejected: "rejected", error: "errors", skipped: "skipped" };
 const LEVEL = {
   ok:       { icon: "✓", label: "OK",       tone: "good" },
   low:      { icon: "▲", label: "Low",      tone: "warning" },
   critical: { icon: "!", label: "Critical", tone: "critical" },
 };
-const VERDICT_ICON = { good: "✓", warning: "▲", critical: "!", neutral: "■" };
+const VERDICT_ICON = { good: "✓", warning: "!", critical: "✕", neutral: "■" };
 const PHASE_TONE = { READY: "neutral", RUNNING: "good", PAUSED: "warning", FINISHED: "neutral", ABORTED: "critical" };
-const ENDED = [
-  ["accepted", "var(--good)"], ["expired", "#6d6b65"], ["withdrawn", "#48473f"], ["run_ended", "#34332f"],
-];
+const EVENT_TONE = { trade: "good", info: "neutral", warning: "warning", alert: "critical", failure: "critical" };
+const URGENCY_TONE = { warning: "warning", critical: "critical" };
 
-// --- DOM helpers: every piece of data goes in as text, never as markup ---------------
+// --- DOM helpers: every piece of data goes in as text, never as markup -------------------
 function h(tag, attrs, ...children) {
   const el = document.createElement(tag);
+  setAttrs(el, attrs);
+  append(el, children);
+  return el;
+}
+function s(tag, attrs, ...children) {
+  const el = document.createElementNS(SVG_NS, tag);
+  setAttrs(el, attrs);
+  append(el, children);
+  return el;
+}
+function setAttrs(el, attrs) {
   for (const [key, value] of Object.entries(attrs || {})) {
     if (value == null || value === false) continue;
-    if (key === "class") el.className = value;
+    if (key === "class") el.setAttribute("class", value);
     else if (key === "style") el.style.cssText = value;
-    else el.setAttribute(key, value);
+    else el.setAttribute(key, value === true ? "" : value);
   }
+}
+function append(el, children) {
   for (const child of children.flat(Infinity)) {
     if (child == null || child === false) continue;
     el.append(child instanceof Node ? child : document.createTextNode(String(child)));
   }
-  return el;
 }
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Number(n).toLocaleString();
+const f1 = (n) => n.toFixed(1);
 const plural = (n, word) => `${fmt(n)} ${word}${n === 1 ? "" : "s"}`;
+const ticksLeft = (n) => (n <= 0 ? "this tick" : plural(n, "tick"));
+// A short, stable wobble per station ID, so planets read as hand-placed but never jitter.
+function wobble(id, spread = 9) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  return ((Math.abs(hash) % (spread * 20)) / 10 - spread).toFixed(1);
+}
 
 function badge(tone, icon, label, title) {
   return h("span", { class: `badge ${tone}`, title }, icon, " ", label);
 }
-function fact(label, value, note, cls) {
-  return h("div", { class: "fact" }, h("span", { class: "label" }, label), h("span", { class: `v ${cls || ""}` }, value),
-    note ? h("span", { class: "note" }, note) : null);
+// A bordered circular sticker of a planet symbol, at any size.
+function orbIcon(kind, size, extraClass) {
+  const border = Math.max(2.2, size * 0.09).toFixed(1);
+  const stroke = Math.max(1.1, size * 0.037).toFixed(2);
+  return h("span", { class: `orbicon ${kind}${extraClass ? " " + extraClass : ""}`, style: `width:${size}px;height:${size}px;border-width:${border}px` },
+    s("svg", { viewBox: "0 0 100 100", width: "100%", height: "100%" },
+      s("use", { href: `#c-${kind}`, width: 100, height: 100, style: `stroke-width:${stroke}px` })));
 }
 function station(id) {
   const name = data && data.header.names[id];
@@ -344,50 +599,71 @@ function resourceList(list) {
   return h("span", { class: "bundle" }, list.map((r) => h("span", { class: "chip" }, h("span", { class: `dot ${r}` }), r)));
 }
 function arrow() {
-  const NS = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(NS, "svg");
-  for (const [k, v] of Object.entries({ width: 16, height: 16, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor",
-    "stroke-width": 1.6, "stroke-linecap": "round", "stroke-linejoin": "round", class: "arrow", "aria-hidden": "true" })) svg.setAttribute(k, v);
-  const path = document.createElementNS(NS, "path");
-  path.setAttribute("d", "M3 8h10M9 4l4 4-4 4");
-  svg.append(path);
-  return svg;
+  return s("svg", { width: 16, height: 16, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "stroke-width": 2,
+                    "stroke-linecap": "round", "stroke-linejoin": "round", class: "arrow", "aria-hidden": "true" },
+    s("path", { d: "M3 8h10M9 4l4 4-4 4" }));
 }
-function ticksLeft(n) {
-  if (n <= 0) return h("span", { class: "critical toned" }, "! expires this tick");
-  if (n === 1) return h("span", { class: "warning toned" }, "▲ 1 tick left");
-  return h("span", { class: "dim" }, `${n} ticks left`);
+function shipIcon(resource, width = 24) {
+  const fill = { water: "#3d9be9", food: "#4cb86a", components: "#f08a3c" }[resource] || "#c9c3e6";
+  return s("svg", { width, height: Math.round((width * 20) / 34), viewBox: "0 0 34 20", "aria-hidden": "true" },
+    s("use", { href: "#c-rocket", width: 34, height: 20, fill }));
+}
+function heartIcon(size = 16) {
+  return s("svg", { width: size, height: size, viewBox: "0 0 24 24", "aria-hidden": "true" },
+    s("path", { d: "M12 21 C5 15 2 11.5 2 8 C2 5 4.5 3 7.2 3 C9.2 3 10.8 4.2 12 6 C13.2 4.2 14.8 3 16.8 3 C19.5 3 22 5 22 8 C22 11.5 19 15 12 21 Z", fill: "#e0485f" }));
 }
 
-// --- header ------------------------------------------------------------------------------
+// --- header ----------------------------------------------------------------------------
+function logoMark() {
+  return s("svg", { width: 42, height: 34, viewBox: "0 0 46 38", "aria-hidden": "true", style: "transform: rotate(-8deg)" },
+    s("g", { transform: "translate(23 20) rotate(-16)" },
+      s("ellipse", { cx: 0, cy: 0, rx: 20, ry: 6, fill: "none", stroke: "#fffaf0", "stroke-width": 7 }),
+      s("ellipse", { cx: 0, cy: 0, rx: 20, ry: 6, fill: "none", stroke: "#9fd4ff", "stroke-width": 3 })),
+    s("circle", { cx: 23, cy: 19, r: 13, fill: "#ff8ab2", stroke: "#fffaf0", "stroke-width": 3.5 }),
+    s("path", { d: "M12 16 C17 14 27 18 34 15", fill: "none", stroke: "#e0578c", "stroke-width": 2.2, "stroke-linecap": "round" }),
+    s("path", { d: "M13 23 C18 21 26 25 32 22", fill: "none", stroke: "#ffc2d8", "stroke-width": 2.2, "stroke-linecap": "round" }),
+    s("g", { transform: "translate(23 20) rotate(-16)" },
+      s("path", { d: "M-20 0 A20 6 0 0 0 20 0", fill: "none", stroke: "#fffaf0", "stroke-width": 7, "stroke-linecap": "round" }),
+      s("path", { d: "M-20 0 A20 6 0 0 0 20 0", fill: "none", stroke: "#9fd4ff", "stroke-width": 3, "stroke-linecap": "round" })));
+}
+function flagMark() {
+  return s("svg", { width: 16, height: 23, viewBox: "0 0 18 26", "aria-hidden": "true" },
+    s("path", { d: "M3 25 L3 3", stroke: "#fdf3e1", "stroke-width": 2.2, "stroke-linecap": "round" }),
+    s("rect", { x: 3, y: 3, width: 13, height: 10, fill: "#fdf3e1" }),
+    s("rect", { x: 3, y: 3, width: 4.3, height: 5, fill: "#2a2446" }),
+    s("rect", { x: 11.6, y: 3, width: 4.4, height: 5, fill: "#2a2446" }),
+    s("rect", { x: 7.3, y: 8, width: 4.3, height: 5, fill: "#2a2446" }));
+}
+
 function renderBar() {
   const bar = $("bar");
-  if (!data || !data.header) {
-    bar.replaceChildren(h("div", { class: "station" }, "Bazaar"), h("div", { style: "flex:1" }), h("span", { id: "conn" }));
+  const hd = data && data.header;
+  if (!hd) {
+    bar.replaceChildren(
+      h("div", { class: "us" }, logoMark(), h("span", { class: "wordmark" }, "Bazaar")),
+      h("span", { style: "flex:1" }), h("span", { id: "paused-pill" }), h("span", { id: "conn" }));
     updateLive();
     return;
   }
-  const hd = data.header;
   const pct = hd.duration_ticks ? Math.min(100, (100 * hd.tick) / hd.duration_ticks) : 0;
   const phase = hd.phase.charAt(0) + hd.phase.slice(1).toLowerCase();
   bar.replaceChildren(
-    h("div", { class: "who" },
-      h("span", { class: "label" }, "Bazaar · our station"),
-      h("div", { class: "who-line" },
-        h("span", { class: "station" }, station(hd.station)),
-        h("span", { class: "badge specialty", title: "our specialty: we produce it" },
-          h("span", { class: `dot ${hd.specialty}` }), `We make ${hd.specialty}`))),
+    h("div", { class: "us" }, logoMark(), h("span", { class: "wordmark" }, "Bazaar")),
+    h("span", { class: "divider", "aria-hidden": "true" }),
+    h("div", { class: "us" },
+      orbIcon(KIND[hd.specialty] || "rock", 34),
+      h("span", { class: "id" }, station(hd.station)),
+      h("span", { class: "muted", style: "font-size:13px" }, `${WORLD[hd.specialty] || hd.specialty} · makes ${fmt(hd.specialty_made)} a tick`)),
     badge(PHASE_TONE[hd.phase] || "neutral", "●", phase),
     h("div", { class: "progress" },
-      h("div", { class: "progress-line" },
-        h("span", {}, "Tick ", h("b", { class: "num" }, fmt(hd.tick)), ` of ${fmt(hd.duration_ticks)} `,
-          h("span", { class: "muted" }, `· ${Math.round(pct)}% through the run`)),
-        h("span", { style: "font-size:13px" }, "next tick ", h("b", { id: "countdown", class: "num", style: "font-size:13px;font-family:inherit" }, "—"))),
+      h("span", { class: "nowrap" }, "Tick ", h("b", { class: "num display", style: "font-size:19px" }, fmt(hd.tick)), ` of ${fmt(hd.duration_ticks)}`),
       h("div", { class: "track", role: "progressbar", "aria-valuenow": hd.tick, "aria-valuemax": hd.duration_ticks, "aria-label": "Run progress" },
-        h("span", { style: `width:${pct}%` }))),
-    h("div", { class: "world" },
-      h("span", { class: "label" }, "World"),
-      h("span", { class: "mono num dim", style: "font-size:13px", title: `snapshot ${hd.snapshot_sequence}` }, `v${fmt(hd.world_version)}`)),
+        h("span", { class: "fill", style: `width:${pct}%` }),
+        h("span", { class: "marker", style: `left:${pct}%` }, shipIcon("water", 30)),
+        h("span", { class: "flag" }, flagMark())),
+      h("span", { class: "muted nowrap" }, "next tick ", h("b", { id: "countdown", class: "num" }, "—"))),
+    h("span", { class: "verline num", title: `snapshot ${hd.snapshot_sequence}` }, `v${fmt(hd.world_version)}`),
+    h("span", { id: "paused-pill" }),
     h("span", { id: "conn" }),
   );
   updateLive();
@@ -396,81 +672,336 @@ function renderBar() {
 // Runs four times a second: the countdown and the connection indicator move between states.
 function updateLive() {
   const conn = $("conn");
+  const now = latest && latest.header;
   if (conn) {
-    const tickMs = data && data.header ? data.header.tick_duration_ms : 5000;
-    const running = data && data.header && data.header.phase === "RUNNING";
+    const tickMs = now ? now.tick_duration_ms : 5000;
     let tone, label, title;
     if (!socketOpen) [tone, label] = ["critical", "Disconnected · retrying"];
-    else if (!data || !data.header) [tone, label] = ["neutral", "Connected"];
-    else if (running && Date.now() - lastMessageAt > 2 * tickMs) [tone, label, title] = ["warning", "Stale", "no state for over two ticks"];
+    else if (!now) [tone, label] = ["neutral", "Connected"];
+    else if (now.phase === "RUNNING" && Date.now() - lastMessageAt > 2 * tickMs) [tone, label, title] = ["warning", "Stale", "no state for over two ticks"];
     else [tone, label] = ["good", "Live"];
     conn.replaceChildren(h("span", { class: `live ${tone}`, title }, h("span", { class: "pulse" }), label));
   }
+  const pill = $("paused-pill");
+  if (pill) pill.replaceChildren(paused && data && data.header
+    ? badge("warning", "‖", `Paused at t${fmt(data.header.tick)}`, now && now.tick !== data.header.tick ? `the game is at t${now.tick}` : undefined)
+    : "");
   const cd = $("countdown");
-  if (cd && data && data.header) {
-    const hd = data.header;
-    if (hd.phase !== "RUNNING" || hd.tick_seen_at_ms == null) cd.textContent = "—";
+  if (cd && now) {
+    if (now.phase !== "RUNNING" || now.tick_seen_at_ms == null) cd.textContent = "—";
     else {
-      const left = hd.tick_seen_at_ms + hd.tick_duration_ms - Date.now();
+      const left = now.tick_seen_at_ms + now.tick_duration_ms - Date.now();
       cd.textContent = left > 0 ? `in ~${Math.ceil(left / 1000)}s` : "due";
     }
   }
 }
 
-// --- verdict and outcome ---------------------------------------------------------------------
+// --- verdict ---------------------------------------------------------------------------------
+function verdictIcon(tone) {
+  if (tone === "warning") return s("svg", { width: 18, height: 18, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "stroke-width": 1.8, "stroke-linejoin": "round", "stroke-linecap": "round", "aria-hidden": "true" },
+    s("path", { d: "M8 2 L14.5 13.5 L1.5 13.5 Z" }), s("path", { d: "M8 6.5 L8 9.4 M8 11.6 L8 11.7" }));
+  if (tone === "critical") return s("svg", { width: 18, height: 18, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "stroke-width": 2.2, "stroke-linecap": "round", "aria-hidden": "true" },
+    s("path", { d: "M4.5 4.5 L11.5 11.5 M11.5 4.5 L4.5 11.5" }));
+  if (tone === "good") return s("svg", { width: 18, height: 18, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" },
+    s("path", { d: "M2.5 8.5 L6.2 12 L13.5 4" }));
+  return s("svg", { width: 18, height: 18, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "stroke-width": 1.8, "aria-hidden": "true" }, s("circle", { cx: 8, cy: 8, r: 5.5 }));
+}
 function renderVerdict() {
   const v = data.verdict;
-  $("verdict").replaceChildren(h("div", { class: `verdict ${v.tone}`, role: "status" },
-    h("span", { class: "mark", "aria-hidden": "true" }, VERDICT_ICON[v.tone] || "·"),
+  $("verdict").replaceChildren(h("div", { class: `verdict card ${v.tone}`, role: "status" },
+    h("span", { class: "tape", style: "right:26px; top:-8px; width:64px; transform:rotate(4deg); background-color:rgba(255,138,178,0.82)" }),
+    h("span", { class: "mark", "aria-hidden": "true" }, verdictIcon(v.tone)),
     h("div", { class: "words" },
       h("span", { class: "title" }, v.title),
-      v.body ? h("span", { class: "body" }, v.body) : null),
-    h("span", { class: "label", style: "flex:none" }, `As of tick ${fmt(data.header.tick)}`)));
-
+      v.body ? h("span", { class: "body" }, v.body) : null)));
 }
 
-// --- health and reserves ---------------------------------------------------------------------
-function healthCard() {
-  const hl = data.health;
-  const pct = hl.max_health ? (100 * hl.health) / hl.max_health : 0;
-  const tone = pct >= 60 ? "good" : pct >= 30 ? "warning" : "critical";
-  const icon = { good: "✓", warning: "▲", critical: "!" }[tone];
-  const word = { good: "Healthy", warning: "Hurting", critical: "In danger" }[tone];
-  return h("article", { class: "card pad" },
-    h("div", { class: "card-head" }, h("span", { class: "card-title" }, "Health"), badge(tone, icon, word)),
-    h("div", { class: "big" }, h("span", { class: "value" }, fmt(hl.health)), h("span", { class: "muted", style: "font-size:16px" }, `/ ${fmt(hl.max_health)}`)),
-    h("div", { class: `meter ${tone}`, role: "meter", "aria-valuenow": hl.health, "aria-valuemax": hl.max_health, "aria-label": "Health" },
-      h("span", { style: `width:${pct}%` })),
-    h("div", { class: "facts two" },
-      fact("Short streak", plural(hl.current_shortage_streak, "tick"), `longest ${fmt(hl.longest_shortage_streak)}`,
-        hl.current_shortage_streak ? "critical toned" : ""),
-      fact("Ever failed", hl.failed_once ? `At tick ${hl.first_failure_tick}` : "Never", "health 0 = out",
-        hl.failed_once ? "critical toned" : ""),
-      fact("Fully supplied", plural(hl.fully_supplied_ticks, "tick")),
-      fact("Went short", plural(hl.shortage_ticks, "tick"))));
+// --- the map ---------------------------------------------------------------------------------
+// A lane is a gentle curve from one planet's edge to another's.  Offers bow out
+// further than cargo lanes, and a lane's two directions bow to opposite sides,
+// so ships going out and coming back pass each other.
+function curve(a, b, ra, rb, bend) {
+  const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+  const sx = a.x + ux * ra, sy = a.y + uy * ra, ex = b.x - ux * rb, ey = b.y - uy * rb;
+  const qx = (sx + ex) / 2 - uy * bend, qy = (sy + ey) / 2 + ux * bend;
+  return { d: `M${f1(sx)} ${f1(sy)} Q${f1(qx)} ${f1(qy)} ${f1(ex)} ${f1(ey)}`, qx, qy, ex, ey, len: Math.hypot(ex - sx, ey - sy) };
+}
+function arrowHead(c) {
+  const tx = c.ex - c.qx, ty = c.ey - c.qy, len = Math.hypot(tx, ty) || 1, ux = tx / len, uy = ty / len;
+  const bx = c.ex - ux * 9, by = c.ey - uy * 9;
+  return `M${f1(c.ex)} ${f1(c.ey)} L${f1(bx - uy * 4.5)} ${f1(by + ux * 4.5)} L${f1(bx + uy * 4.5)} ${f1(by - ux * 4.5)} Z`;
+}
+const HOME = { x: STAGE.cx, y: STAGE.cy };
+
+// Stations sit evenly round one orbit, offset so none hides straight above or
+// below us.  The far half is drawn a little smaller; a crowded orbit shrinks.
+function stationLayout(stations) {
+  const n = stations.length;
+  const shrink = Math.min(1, Math.max(0.6, 8 / Math.max(n, 1)));
+  const out = new Map();
+  stations.forEach((st, k) => {
+    const a = ((-90 + 180 / n + (360 * k) / n) * Math.PI) / 180;
+    const dia = Math.round((Math.sin(a) < 0 ? 44 : 52) * shrink);
+    out.set(st.station, { x: STAGE.cx + STAGE.rx * Math.cos(a), y: STAGE.cy + STAGE.ry * Math.sin(a), r: dia / 2, dia, above: Math.sin(a) < -0.5 });
+  });
+  return out;
 }
 
+function buildPlanets(stations) {
+  layout = stationLayout(stations);
+  planetEls = new Map();
+  const compact = stations.length > 12;
+  const nodes = stations.map((st) => {
+    const p = layout.get(st.station);
+    const use = s("use", { href: "#c-rock", width: 100, height: 100, style: "stroke-width:1.8px" });
+    const els = {
+      ping: h("span", { class: "ping", hidden: true }),
+      ring: h("span", { class: "sel-ring", hidden: true }),
+      use,
+      dots: h("span", { class: "dots" }),
+      rel: h("span", { class: "rel quiet" }),
+    };
+    els.btn = h("button", { type: "button", class: "planet", "aria-pressed": "false",
+                            style: `left:${f1(p.x - p.r)}px; top:${f1(p.y - p.r)}px; width:${p.dia}px; height:${p.dia}px; background:var(--rock); transform:rotate(${wobble(st.station)}deg)` },
+      s("svg", { viewBox: "0 0 100 100" }, use),
+      els.ping, els.ring,
+      h("span", { class: `plabel card scaled-text ${p.above ? "above" : "below"}${compact ? " compact" : ""}` },
+        h("span", { class: "bullet", "aria-hidden": "true" }),
+        h("span", { class: "cols" },
+          h("span", { class: "pline" }, els.dots, h("b", { class: "pid" }, st.station)), els.rel)));
+    els.btn.addEventListener("click", () => select(st.station));
+    planetEls.set(st.station, els);
+    return els.btn;
+  });
+  $("planets").replaceChildren(...nodes);
+}
+
+// What the label under a planet says: the most pressing thing between it and us.
+function relation(st) {
+  if (st.incoming.length) {
+    const o = st.incoming[0];
+    return { text: `offer for us · ${ticksLeft(o.ticks_left)}`, tone: o.ticks_left <= 1 ? "warning" : "accent" };
+  }
+  if (st.cargo) return { text: `cargo · t${st.last_trade.settled_tick}`, tone: "good" };
+  if (st.outgoing.length > 1) return { text: `${st.outgoing.length} offers from us`, tone: "neutral" };
+  if (st.outgoing.length) return { text: `our offer · ${ticksLeft(st.outgoing[0].ticks_left)}`, tone: "neutral" };
+  if (st.sells.length) return { text: `sells ${st.sells.join(" & ")}`, tone: "quiet" };
+  if (st.seeks.length) return { text: `wants ${st.seeks.join(" & ")}`, tone: "quiet" };
+  return { text: "no listing", tone: "quiet" };
+}
+
+function renderMap() {
+  const stations = data.stations;
+  const key = stations.map((st) => st.station).join(",");
+  if (key !== planetKey) {
+    planetKey = key;
+    buildPlanets(stations);
+  }
+  let out = "", inc = "", trade = "", heads = "";
+  for (const st of stations) {
+    const p = layout.get(st.station);
+    const els = planetEls.get(st.station);
+    if (!p || !els) continue;
+    if (st.outgoing.length) {
+      const c = curve(HOME, p, STAGE.laneR, p.r + 10, 34);
+      out += `${c.d} `;
+      heads += `${arrowHead(c)} `;
+    }
+    if (st.incoming.length) inc += `${curve(p, HOME, p.r + 10, STAGE.laneR, 34).d} `;
+    if (st.cargo) trade += `${curve(HOME, p, STAGE.laneR, p.r + 6, 14).d} ${curve(p, HOME, p.r + 6, STAGE.laneR, 14).d} `;
+
+    const rel = relation(st);
+    const kind = st.sells.length ? KIND[st.sells[0]] || "rock" : "rock";
+    els.btn.style.background = `var(--${kind === "ocean" ? "water" : kind === "farm" ? "food" : kind === "forge" ? "components" : "rock"})`;
+    if (els.use.getAttribute("href") !== `#c-${kind}`) els.use.setAttribute("href", `#c-${kind}`);
+    if (els.dots.dataset.sells !== st.sells.join()) {
+      els.dots.dataset.sells = st.sells.join();
+      els.dots.replaceChildren(...st.sells.map((r) => h("span", { class: `dot ${r}` })));
+    }
+    els.rel.textContent = rel.text;
+    els.rel.className = `rel ${rel.tone}`;
+    els.ping.hidden = !st.incoming.length;
+    els.ring.hidden = selected !== st.station;
+    els.btn.setAttribute("aria-pressed", selected === st.station ? "true" : "false");
+    const sells = st.sells.length && !rel.text.startsWith("sells") ? `, sells ${st.sells.join(" and ")}` : "";
+    els.btn.setAttribute("aria-label", `${station(st.station)}: ${rel.text}${sells}`);
+  }
+  $("lane-out").setAttribute("d", out);
+  $("lane-heads").setAttribute("d", heads);
+  $("lane-in").setAttribute("d", inc);
+  $("lane-trade").setAttribute("d", trade);
+  renderHome();
+  launchShips();
+}
+
+function renderHome() {
+  const hd = data.header, hl = data.health;
+  const pct = hl.max_health ? Math.max(0, hl.health) / hl.max_health : 0;
+  const tone = pct >= 0.6 ? "good" : pct >= 0.3 ? "warning" : "critical";
+  const kind = KIND[hd.specialty] || "ocean";
+  $("home-halo").className = `home-halo ${kind}`;
+  $("home-alarm").hidden = pct >= 0.3 || hd.phase !== "RUNNING";
+  $("home-sel").hidden = selected !== "home";
+  $("home-arc").setAttribute("class", `arc ${tone}`);
+  $("home-arc").setAttribute("stroke-dasharray", `${f1(RING * pct)} ${f1(RING)}`);
+  const chip = $("home-chip");
+  chip.className = `home-chip card scaled-text ${tone}`;
+  chip.replaceChildren(heartIcon(18), h("span", { class: "v" }, fmt(hl.health)), h("span", { class: "of" }, `/ ${fmt(hl.max_health)}`));
+  $("home-tag").className = "home-tag card scaled-text";
+  $("home-name-tag").textContent = `${hd.station} · us`;
+  $("home-name").textContent = `${hd.station} · us`;
+  $("home-world").textContent = WORLD[hd.specialty] || hd.specialty;
+  const btn = $("home-btn");
+  btn.replaceChildren(s("svg", { viewBox: "0 0 100 100" }, s("use", { href: `#c-${kind}`, width: 100, height: 100, style: "stroke-width:2.6px" })));
+  btn.style.background = `var(--${kind === "ocean" ? "water" : kind === "farm" ? "food" : "components"})`;
+  btn.setAttribute("aria-pressed", selected === "home" ? "true" : "false");
+  btn.setAttribute("aria-label", `${hd.station}, our station: health ${hl.health} of ${hl.max_health}`);
+}
+
+// A ship per resource leaves each way when a trade settles: what we paid flies
+// out, what we got flies home, and the two pass mid-lane.  On first load only
+// trades still "in flight" get ships; the rest are history.
+function launchShips() {
+  const hd = data.header;
+  const fresh = [];
+  for (const t of data.trades.recent) {
+    if (seenTrades.has(t.transaction_id)) continue;
+    seenTrades.add(t.transaction_id);
+    if (!firstBatch || hd.tick - t.settled_tick < data.map.cargo_ticks) fresh.push(t);
+  }
+  firstBatch = false;
+  for (const t of fresh.reverse()) {
+    const p = layout.get(t.counterparty);
+    if (!p) continue;
+    const out = curve(HOME, p, STAGE.laneR, p.r + 6, 14), back = curve(p, HOME, p.r + 6, STAGE.laneR, 14);
+    RESOURCES.filter((r) => t.we_gave[r]).forEach((r, i) => ship(out, r, i * 0.35));
+    RESOURCES.filter((r) => t.we_got[r]).forEach((r, i) => ship(back, r, i * 0.35));
+  }
+}
+
+function ship(c, resource, delay) {
+  const layer = $("ships");
+  if (layer.childElementCount >= 40) return;  // a flood of trades still reads as traffic
+  const dur = Math.min(4.5, Math.max(2.8, c.len / 36));
+  const el = h("div", { class: "ship", style: `offset-path: path('${c.d}'); animation-duration: ${dur.toFixed(2)}s; animation-delay: ${delay}s` },
+    shipIcon(resource, 26));
+  if (REDUCED.matches) {
+    el.classList.add("still");
+    setTimeout(() => el.remove(), 3000);
+  } else {
+    el.addEventListener("animationend", () => el.remove());
+  }
+  layer.append(el);
+}
+
+function select(id) {
+  selected = selected === id ? null : id;
+  if (!data) return;
+  renderMap();
+  renderInspector();
+}
+
+// --- inspector: the selected planet, or the system at a glance ----------------------------------
+function tagLine(label, list) {
+  return list.length ? h("span", {}, label, " ", list.map((r) => h("span", { class: `dot ${r}` })), h("b", {}, list.join(" & "))) : null;
+}
+function terms(get, give) {
+  return [
+    h("span", { class: "chip" }, h("span", { class: "muted" }, "we get"), bundle(get, { sign: "+" })),
+    h("span", { class: "chip" }, h("span", { class: "muted" }, "we give"), bundle(give, { sign: "−" })),
+  ];
+}
+function inspectorParts(orbKind, caption, name, tags, title, tone, termsNodes, note, pastValue, pastNote) {
+  return [
+    h("div", { class: "who" },
+      orbIcon(orbKind, 42),
+      h("div", { style: "display:flex; flex-direction:column; min-width:0" },
+        h("span", { class: "caption dark", style: "font-size:10px" }, caption),
+        h("span", { class: "name" }, name),
+        h("div", { class: "tags" }, tags))),
+    h("span", { class: "rule", "aria-hidden": "true" }),
+    h("div", { class: `now ${tone}` },
+      h("span", { class: "t" }, title),
+      h("div", { class: "terms" }, termsNodes, note ? h("span", { class: "muted", style: "color:var(--card-muted)" }, note) : null)),
+    h("span", { class: "rule", "aria-hidden": "true" }),
+    h("div", { class: "past" }, h("span", { class: "v" }, pastValue), h("span", { style: "font-size:12px; font-weight:700; color:var(--card-muted)" }, pastNote)),
+  ];
+}
+
+function renderInspector() {
+  const box = $("inspector");
+  const hd = data.header;
+  if (selected === "home") {
+    const hl = data.health;
+    const pct = hl.max_health ? hl.health / hl.max_health : 0;
+    const tone = pct >= 0.6 ? "good" : pct >= 0.3 ? "warning" : "critical";
+    const word = { good: "healthy", warning: "hurting", critical: "in danger" }[tone];
+    box.replaceChildren(...inspectorParts(
+      KIND[hd.specialty] || "ocean", "OUR STATION", `${hd.station} · us`,
+      tagLine("makes", [hd.specialty]),
+      `Health ${fmt(hl.health)} / ${fmt(hl.max_health)} · ${word}`, tone, [],
+      `short streak ${plural(hl.current_shortage_streak, "tick")} · longest ${fmt(hl.longest_shortage_streak)}` +
+        (hl.failed_once ? ` · failed at t${hl.first_failure_tick}` : ""),
+      plural(hl.fully_supplied_ticks, "tick"), `fully supplied · ${fmt(hl.shortage_ticks)} short`));
+    return;
+  }
+  const st = selected && data.stations.find((x) => x.station === selected);
+  if (!st) {
+    const incoming = data.offers.incoming.length, outgoing = data.offers.outgoing.length;
+    box.replaceChildren(...inspectorParts(
+      KIND[hd.specialty] || "ocean", "SYSTEM", plural(data.stations.length, "station"),
+      [h("span", {}, "click a planet for details")],
+      `${plural(incoming, "offer")} for us · ${fmt(outgoing)} of ours out`, incoming ? "accent" : "neutral", [],
+      `${plural(data.recent.trades, "trade")} in the last ${data.recent.to_tick - data.recent.from_tick + 1} ticks`,
+      plural(data.trades.total, "trade"), "with us this run"));
+    return;
+  }
+  let title = "Nothing open with us", tone = "neutral", termNodes = [], note = "";
+  if (st.incoming.length) {
+    const o = st.incoming[0];
+    [title, tone, termNodes] = ["Offer waiting on us", o.ticks_left <= 1 ? "warning" : "accent", terms(o.we_get, o.we_give)];
+    note = `${ticksLeft(o.ticks_left)} left` + (st.incoming.length > 1 ? ` · ${st.incoming.length - 1} more` : "");
+  } else if (st.cargo) {
+    const t = st.last_trade;
+    [title, tone, termNodes] = ["Cargo in flight", "good", terms(t.we_got, t.we_gave)];
+    note = `settled t${t.settled_tick}` + (st.outgoing.length ? " · another offer out" : "");
+  } else if (st.outgoing.length) {
+    const o = st.outgoing[0];
+    [title, tone, termNodes] = [st.outgoing.length > 1 ? `Our ${st.outgoing.length} offers to them` : "Our offer to them", "neutral", terms(o.we_get, o.we_give)];
+    note = `${ticksLeft(o.ticks_left)} left`;
+  }
+  const tags = [tagLine("sells", st.sells), tagLine("wants", st.seeks)].filter(Boolean);
+  box.replaceChildren(...inspectorParts(
+    st.sells.length ? KIND[st.sells[0]] || "rock" : "rock", "SELECTED PLANET", station(st.station),
+    tags.length ? tags : [h("span", {}, "no listing on the board")],
+    title, tone, termNodes, note,
+    plural(st.trades_total, "trade"), st.last_trade ? `with us · last t${st.last_trade.settled_tick}` : "with us this run"));
+}
+
+// --- cargo hold ----------------------------------------------------------------------------------
 function reserveCard(r) {
   const level = LEVEL[r.level];
   const scale = data.cover_scale;
   const at = (ticks) => `${(100 * ticks) / scale.max_ticks}%`;
-  const fill = r.cover_ticks == null ? 100
+  const fill = r.self_sufficient || r.cover_ticks == null ? 100
     : Math.max(r.cover_ticks > 0 ? 2 : 0, Math.min(1, r.cover_ticks / scale.max_ticks) * 100);
   const net = r.net_per_tick;
-  const netText = `${net > 0 ? "+" : net < 0 ? "−" : "±"}${fmt(Math.abs(net))} / tick`;
-  return h("article", { class: `card pad${r.level === "critical" ? " alarm" : ""}` },
-    h("div", { class: "card-head" },
-      h("span", { class: `dot lg ${r.resource}` }),
-      h("span", { class: "card-title" }, r.resource),
-      r.is_specialty ? h("span", { class: "muted", style: "font-size:12px", title: "our specialty: we produce it" }, "★ we make it") : null,
+  const cover = r.self_sufficient ? "makes its own" : r.cover_ticks == null ? "not consumed"
+    : r.cover_ticks === 0 ? "empty" : `${r.cover_ticks} ticks`;
+  return h("article", { class: "res card", "data-resource": r.resource },
+    h("span", { class: "tape", "aria-hidden": "true" }),
+    h("div", { class: "res-head" },
+      orbIcon(KIND[r.resource], 30),
+      h("span", { class: "res-name" }, r.resource),
+      r.is_specialty ? h("span", { class: "res-star", title: "our specialty: we produce it" }, "★ we make it") : null,
       badge(level.tone, level.icon, level.label)),
-    h("div", { class: "big", style: "justify-content:space-between" },
-      h("span", { class: "big" }, h("span", { class: "value" }, fmt(r.amount)), h("span", { class: "muted" }, "in stock")),
-      h("span", { class: "dim num", style: "font-weight:500", title: "made minus burned last tick, before any trades" }, netText)),
+    h("div", { class: "amount-row" },
+      h("span", { style: "display:flex; align-items:baseline; gap:6px" },
+        h("span", { class: "amount" }, fmt(r.amount)), h("span", { class: "amount-note" }, "in the hold")),
+      h("span", { class: "net num", title: "made minus burned last tick, before any trades" },
+        `${net > 0 ? "+" : net < 0 ? "−" : "±"}${fmt(Math.abs(net))} / tick`)),
     h("div", { class: `gauge ${level.tone}` },
-      h("div", { class: "gauge-head" },
-        h("span", { class: "dim", style: "font-size:13px" }, "Lasts"),
-        h("span", { class: "toned num", style: "font-weight:600" }, r.cover_ticks == null ? "not consumed" : `${r.cover_ticks} ticks`)),
+      h("div", { class: "gauge-head" }, h("span", { style: "color:var(--card-ink-2)" }, "Lasts"), h("span", { class: "toned num" }, cover)),
       h("div", { class: "gauge-bar", role: "meter", "aria-label": `${r.resource} cover in ticks`,
                  "aria-valuenow": r.cover_ticks ?? scale.max_ticks, "aria-valuemax": scale.max_ticks },
         h("span", { class: "fill", style: `width:${fill}%` }),
@@ -481,59 +1012,40 @@ function reserveCard(r) {
         h("span", { style: `left:${at(scale.critical_ticks)}` }, fmt(scale.critical_ticks)),
         h("span", { style: `left:${at(scale.low_ticks)}` }, fmt(scale.low_ticks)),
         h("span", {}, `${fmt(scale.max_ticks)}+ ticks`))),
-    h("div", { class: "fact" },
-      h("span", { class: "label" }, r.history.length ? `Last ${plural(r.history.length, "tick")}` : "Trend"),
-      sparkline(r)),
-    h("div", { class: "facts four" },
-      fact("Makes", fmt(r.last_production)),
-      fact("Burns", fmt(r.upkeep)),
-      fact("Bought", fmt(r.imported_total)),
-      fact("Sold", fmt(r.exported_total))),
-    r.last_unmet ? h("div", { class: "alert critical" }, `! ${fmt(r.last_unmet)} short last tick — costing health`) : null);
+    sparkline(r),
+    h("div", { class: "minis" },
+      [["MAKES", r.last_production], ["BURNS", r.upkeep], ["BOUGHT", r.imported_total], ["SOLD", r.exported_total]].map(([k, v]) =>
+        h("div", { style: "display:flex; flex-direction:column" }, h("span", { class: "k" }, k), h("span", { class: "v" }, fmt(v))))),
+    r.last_unmet ? h("div", { class: "alert critical" }, `! ${fmt(r.last_unmet)} short last tick, costing health`) : null);
 }
 
-// A single-series trend: 2px line, a faint wash, a ringed end-dot, and a
-// crosshair that snaps to the nearest tick.  The "Reserve history" table
-// holds the same numbers for anyone not hovering.
+// A single-series trend: a line, a faint wash, an end dot, and a crosshair that
+// snaps to the nearest tick on hover.
 function sparkline(r) {
   const pts = r.history;
   if (pts.length < 2) return h("div", { class: "spark-empty" }, "trend appears after two ticks");
-  const W = 300, H = 56, pad = 5;
+  const W = 280, H = 26, pad = 3;
   const t0 = pts[0][0], t1 = pts[pts.length - 1][0];
   const maxY = Math.max(1, ...pts.map((p) => p[1]));
   const x = (t) => pad + ((W - 2 * pad) * (t - t0)) / Math.max(1, t1 - t0);
-  const y = (v) => H - pad - ((H - 2 * pad) * v) / maxY; // zero is the baseline: empty means empty
-  const line = pts.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
-  const area = `${line}L${x(t1).toFixed(1)},${y(0)}L${x(t0).toFixed(1)},${y(0)}Z`;
-  const colour = `var(--${r.resource})`;
-  const NS = "http://www.w3.org/2000/svg";
-  const s = (tag, attrs) => {
-    const el = document.createElementNS(NS, tag);
-    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
-    return el;
-  };
+  const y = (v) => H - pad - ((H - 2 * pad) * v) / maxY;  // zero is the baseline: empty means empty
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${f1(x(p[0]))},${f1(y(p[1]))}`).join("");
+  const colour = { water: "#3d9be9", food: "#4cb86a", components: "#f08a3c" }[r.resource] || "#8f84c4";
   const svg = s("svg", { class: "spark", viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", role: "img",
-                          "aria-label": `${r.resource} over the last ${pts.length} ticks` });
-  svg.append(
-    s("line", { x1: pad, x2: W - pad, y1: y(0), y2: y(0), stroke: "rgba(255,255,255,0.12)", "stroke-width": 1, "vector-effect": "non-scaling-stroke" }),
-    s("path", { d: area, fill: colour, "fill-opacity": 0.12, stroke: "none" }),
-    s("path", { d: line, fill: "none", stroke: colour, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round", "vector-effect": "non-scaling-stroke" }),
-  );
-  const cross = s("line", { y1: pad, y2: H - pad, stroke: "rgba(255,255,255,0.25)", "stroke-width": 1, "vector-effect": "non-scaling-stroke", visibility: "hidden" });
+                          "aria-label": `${r.resource} over the last ${pts.length} ticks` },
+    s("path", { d: `${line}L${f1(x(t1))},${y(0)}L${f1(x(t0))},${y(0)}Z`, style: `fill:${colour}`, "fill-opacity": 0.2 }),
+    s("path", { d: line, fill: "none", style: `stroke:${colour}`, "stroke-width": 2.4, "stroke-linejoin": "round", "stroke-linecap": "round", "vector-effect": "non-scaling-stroke" }));
+  const cross = s("line", { y1: pad, y2: H - pad, stroke: "rgba(42,36,70,0.35)", "stroke-width": 1, "vector-effect": "non-scaling-stroke", visibility: "hidden" });
   svg.append(cross);
-
-  // Dots are drawn in HTML over the SVG so they stay round when the SVG stretches.
   const wrap = h("div", { class: "spark-wrap" }, svg);
+  // Dots are HTML over the SVG so they stay round when the SVG stretches.
   const dot = (px, py) => h("span", { style:
-    `position:absolute; left:calc(${(100 * px) / W}% - 6px); top:${py - 6}px; width:12px; height:12px; border-radius:50%;` +
-    `background:${colour}; border:2px solid var(--surface); pointer-events:none` });
+    `position:absolute; left:calc(${(100 * px) / W}% - 4px); top:${py - 4}px; width:8px; height:8px; border-radius:50%; background:${colour}; border:1.5px solid #fdf3e1; pointer-events:none` });
   const last = pts[pts.length - 1];
-  wrap.append(dot(x(last[0]), y(last[1])));
   const hover = dot(0, 0);
   hover.style.visibility = "hidden";
   const tip = h("div", { class: "tooltip", style: "visibility:hidden" });
-  wrap.append(hover, tip);
-
+  wrap.append(dot(x(last[0]), y(last[1])), hover, tip);
   svg.addEventListener("pointermove", (e) => {
     const box = svg.getBoundingClientRect();
     const px = ((e.clientX - box.left) / box.width) * W;
@@ -542,13 +1054,12 @@ function sparkline(r) {
     const bx = x(best[0]);
     cross.setAttribute("x1", bx); cross.setAttribute("x2", bx);
     cross.setAttribute("visibility", "visible");
-    hover.style.left = `calc(${(100 * bx) / W}% - 6px)`;
-    hover.style.top = `${y(best[1]) - 6}px`;
+    hover.style.left = `calc(${(100 * bx) / W}% - 4px)`;
+    hover.style.top = `${y(best[1]) - 4}px`;
     hover.style.visibility = "visible";
     tip.replaceChildren(h("b", {}, fmt(best[1])), ` ${r.resource} · tick ${best[0]}`);
-    const left = (bx / W) * box.width;
-    tip.style.left = `${Math.min(Math.max(0, left - 60), box.width - 140)}px`;
-    tip.style.top = "-28px";
+    tip.style.left = `${Math.min(Math.max(0, (bx / W) * box.width - 60), box.width - 140)}px`;
+    tip.style.top = "-26px";
     tip.style.visibility = "visible";
   });
   svg.addEventListener("pointerleave", () => {
@@ -559,26 +1070,199 @@ function sparkline(r) {
   return wrap;
 }
 
-// --- agent activity -----------------------------------------------------------------------------
-function giveGet(give, get) {
-  return [h("span", { class: "word" }, "give"), bundle(give, { boxed: true }), arrow(),
-          h("span", { class: "word" }, "get"), bundle(get, { boxed: true })];
+// A panel under the pointer waits for it to leave before redrawing: redrawing
+// would drop a sparkline tooltip, or move the log while it is being read.
+const hovered = { cargo: false, log: false };
+const stale = { cargo: false, log: false };
+function holdWhileHovered(id, key, redraw) {
+  const el = $(id);
+  el.addEventListener("pointerenter", () => { hovered[key] = true; });
+  el.addEventListener("pointerleave", () => {
+    hovered[key] = false;
+    if (stale[key] && data && data.header) { stale[key] = false; redraw(); }
+  });
 }
 
+function renderCargo() {
+  $("cargo").replaceChildren(
+    h("div", { class: "cargo-head" }, h("span", { class: "title" }, "Cargo hold"), h("span", { class: "sub" }, "how long each lasts")),
+    ...data.reserves.map(reserveCard));
+}
+
+// --- agent panel: intent and counts, which change slowly enough to read -------------------------------
+function mascotIcon() {
+  return s("svg", { width: 44, height: 44, viewBox: "0 0 48 48", "aria-hidden": "true", style: "transform: rotate(-6deg); filter: drop-shadow(0 2px 2px rgba(42,36,70,0.35))" },
+    s("circle", { cx: 24, cy: 24, r: 23, fill: "#fffaf0" }),
+    s("circle", { cx: 24, cy: 24, r: 19.5, fill: "#ffd9e6" }),
+    s("path", { d: "M24 14 L24 8.5", stroke: "#2a2446", "stroke-width": 2, "stroke-linecap": "round" }),
+    s("circle", { cx: 24, cy: 7.5, r: 3, fill: "#ffc83a", stroke: "#2a2446", "stroke-width": 1.5 }),
+    s("rect", { x: 10, y: 21, width: 4, height: 9, rx: 2, fill: "#9fd4ff", stroke: "#2a2446", "stroke-width": 1.5 }),
+    s("rect", { x: 34, y: 21, width: 4, height: 9, rx: 2, fill: "#9fd4ff", stroke: "#2a2446", "stroke-width": 1.5 }),
+    s("rect", { x: 13, y: 14, width: 22, height: 21, rx: 8, fill: "#bfe3ff", stroke: "#2a2446", "stroke-width": 1.8 }),
+    s("circle", { cx: 19.5, cy: 23.5, r: 3, fill: "#2a2446" }),
+    s("circle", { cx: 28.5, cy: 23.5, r: 3, fill: "#2a2446" }),
+    s("circle", { cx: 20.5, cy: 22.5, r: 1, fill: "#ffffff" }),
+    s("circle", { cx: 29.5, cy: 22.5, r: 1, fill: "#ffffff" }),
+    s("path", { d: "M20.5 29.5 Q24 32 27.5 29.5", fill: "none", stroke: "#2a2446", "stroke-width": 1.8, "stroke-linecap": "round" }));
+}
+const EVENT_ICONS = {
+  trade: () => shipIcon(null, 18),
+  warning: () => s("svg", { width: 15, height: 15, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "stroke-width": 1.8, "stroke-linejoin": "round", "stroke-linecap": "round", "aria-hidden": "true" },
+    s("path", { d: "M8 2 L14.5 13.5 L1.5 13.5 Z" }), s("path", { d: "M8 6.5 L8 9.4 M8 11.6 L8 11.7" })),
+  failure: () => s("svg", { width: 15, height: 15, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "stroke-width": 2, "stroke-linecap": "round", "aria-hidden": "true" },
+    s("path", { d: "M4.5 4.5 L11.5 11.5 M11.5 4.5 L4.5 11.5" })),
+  info: () => s("svg", { width: 15, height: 15, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" },
+    s("path", { d: "M2.5 5.5 H12.5 L10 3" }), s("path", { d: "M13.5 10.5 H3.5 L6 13" })),
+};
+EVENT_ICONS.alert = EVENT_ICONS.warning;
+
+// The panel's frame is built once, so its buttons are never swapped out from
+// under a click; each update only fills in the parts that change.
+let agentEls = null;
+
+function buildAgent() {
+  const column = (gap) => h("div", { style: `display:flex; flex-direction:column; gap:${gap}px` });
+  const els = {
+    name: h("span", { class: "display", style: "font-size:18px" }),
+    pause: h("button", { type: "button", class: "btn" }),
+    now: h("span", { class: "caption dark" }),
+    headline: h("span", { class: "headline" }),
+    goals: column(8),
+    window: h("span", { class: "caption dark" }),
+    range: h("span", { class: "num", style: "font-size:11px; font-weight:800; color:var(--card-muted)" }),
+    stats: h("div", { class: "stats" }),
+    problem: h("div", { class: "problem" }),
+    events: column(9),
+    stripLabel: h("span", { class: "caption dark" }),
+    strip: h("div", { class: "strip", role: "img" }),
+    from: h("span", {}),
+    to: h("span", {}),
+    pausedShown: null,
+  };
+  els.pause.addEventListener("click", togglePause);
+  const logButton = h("button", { type: "button", class: "link" }, "Full action log →");
+  logButton.addEventListener("click", openLog);
+  $("agent").replaceChildren(
+    h("section", {},
+      h("div", { class: "agent-head" },
+        mascotIcon(),
+        h("div", { style: "display:flex; flex-direction:column; line-height:1.2" }, h("span", { class: "caption dark" }, "Agent"), els.name),
+        els.pause),
+      h("div", { style: "display:flex; flex-direction:column; gap:3px" }, els.now, els.headline),
+      els.goals),
+    h("section", {}, h("div", { class: "row-between" }, els.window, els.range), els.stats, els.problem),
+    h("section", { class: "grow" },
+      h("div", { class: "row-between" }, h("span", { class: "caption dark" }, "Highlights"), logButton),
+      els.events),
+    h("section", {},
+      h("div", { class: "row-between" }, els.stripLabel,
+        h("span", { style: "font-size:11px; font-weight:800; color:var(--card-muted)" },
+          h("span", { class: "swatch", style: "background:var(--food-line)" }), "trades ↑  ",
+          h("span", { class: "swatch", style: "background:#e0485f; margin-left:6px" }), "failures ↓")),
+      els.strip,
+      h("div", { class: "row-between num", style: "font-size:11px; font-weight:800; color:var(--card-muted)" }, els.from, els.to)));
+  return els;
+}
+
+function goalRow(g) {
+  const buyish = g.verb === "buy";
+  return h("div", { class: `goal${buyish ? " buy" : ""}` },
+    orbIcon(KIND[g.resource], 28),
+    h("div", { class: "txt" },
+      h("div", { class: "row1" },
+        h("span", { class: `verb${buyish ? " buy" : ""}` }, g.verb.toUpperCase()),
+        h("span", { class: "res-word" }, g.resource.charAt(0).toUpperCase() + g.resource.slice(1))),
+      h("span", { class: "text" }, g.text)));
+}
+
+function stat(tone, value, label) {
+  return h("div", { class: `stat ${tone}` }, h("span", { class: "v" }, fmt(value)), h("span", { class: "k" }, label));
+}
+
+function renderAgent() {
+  const els = agentEls || (agentEls = buildAgent());
+  const hd = data.header, plan = data.plan, rc = data.recent;
+  if (els.pausedShown !== paused) {
+    // Only when it changes: a button whose insides are swapped mid-press can lose the click.
+    els.pausedShown = paused;
+    els.pause.setAttribute("aria-pressed", paused ? "true" : "false");
+    els.pause.replaceChildren(
+      paused
+        ? s("svg", { width: 12, height: 12, viewBox: "0 0 12 12", "aria-hidden": "true" }, s("path", { d: "M3 1.8 L10.2 6 L3 10.2 Z", fill: "currentColor" }))
+        : s("svg", { width: 12, height: 12, viewBox: "0 0 12 12", "aria-hidden": "true" },
+            s("rect", { x: 2, y: 1.5, width: 2.8, height: 9, rx: 0.8, fill: "currentColor" }),
+            s("rect", { x: 7.2, y: 1.5, width: 2.8, height: 9, rx: 0.8, fill: "currentColor" })),
+      paused ? "Resume" : "Pause");
+  }
+  els.name.textContent = hd.agent ? hd.agent.charAt(0).toUpperCase() + hd.agent.slice(1) : "—";
+  els.now.textContent = paused ? `Paused at t${fmt(hd.tick)}` : "Right now";
+  els.now.className = `caption dark${paused ? " toned warning" : ""}`;
+  els.headline.textContent = plan.headline;
+  els.goals.replaceChildren(...plan.goals.map(goalRow));
+
+  els.window.textContent = `Last ${rc.to_tick - rc.from_tick + 1} ticks`;
+  els.range.textContent = `t${rc.from_tick}–t${rc.to_tick}`;
+  els.stats.replaceChildren(
+    stat("good", rc.trades, "trades done"),
+    stat("neutral", rc.expired, "offers expired"),
+    stat(rc.failures ? "critical" : "neutral", rc.failures, "failures"));
+  const top = rc.top_failure;
+  if (top) {
+    els.problem.className = `problem ${top.count >= rc.failures / 2 && rc.failures >= 5 ? "critical" : "neutral"}`;
+    els.problem.textContent = `Most failures: ${top.reason} (${fmt(top.count)} of ${fmt(rc.failures)})` + (top.hint ? `: ${top.hint}.` : ".");
+  } else {
+    els.problem.className = "problem good";
+    els.problem.textContent = "No failed commands.";
+  }
+
+  els.events.replaceChildren(...(data.highlights.length
+    ? data.highlights.map((e) => h("div", { class: `event ${EVENT_TONE[e.kind] || "neutral"}` },
+        h("span", { class: "icon" }, (EVENT_ICONS[e.kind] || EVENT_ICONS.info)()),
+        h("span", { class: "text" }, e.text),
+        h("span", { class: "t" }, `t${e.tick}`)))
+    : [h("span", { class: "empty" }, "Nothing notable yet.")]));
+
+  const maxEvents = Math.max(3, ...rc.strip.map((t) => Math.max(t.trades, t.failures)));
+  const bar = (n) => Math.round((22 * n) / maxEvents);
+  els.stripLabel.textContent = `Last ${rc.strip.length} ticks`;
+  els.strip.setAttribute("aria-label", `Trades and failures over the last ${rc.strip.length} ticks`);
+  els.strip.replaceChildren(h("span", { class: "base" }),
+    ...rc.strip.map((t) => h("div", { class: "col", title: `t${t.tick}: ${plural(t.trades, "trade")}, ${plural(t.failures, "failure")}` },
+      h("div", { class: "up" }, h("span", { style: `height:${bar(t.trades)}px` })),
+      h("div", { class: "down" }, h("span", { style: `height:${bar(t.failures)}px` })))));
+  els.from.textContent = `t${rc.strip.length ? rc.strip[0].tick : rc.to_tick}`;
+  els.to.textContent = `t${rc.to_tick}`;
+}
+
+function togglePause() {
+  paused = !paused;
+  if (!paused && latest && latest !== data) {
+    data = latest;
+    render();
+  } else if (data && data.header) {
+    renderAgent();
+  }
+  updateLive();
+}
+
+// --- the full action log ---------------------------------------------------------------------------
+function giveGet(give, get) {
+  return [h("span", { class: "muted", style: "color:var(--card-muted)" }, "give"), bundle(give, { boxed: true }), arrow(),
+          h("span", { class: "muted", style: "color:var(--card-muted)" }, "get"), bundle(get, { boxed: true })];
+}
 function actionLine(a) {
   const t = a.terms || {};
   const kind = (k) => h("span", { class: "kind" }, k);
   switch (t.kind) {
     case "offer":
       return [kind("Offer"), h("span", { class: "who" }, `to ${station(t.counterparty)}`), giveGet(t.we_give, t.we_get),
-              h("span", { class: "muted", style: "font-size:12px" }, `until t${t.expires_tick}`)];
+              h("span", { style: "font-size:12px; font-weight:800; color:var(--card-muted)" }, `until t${t.expires_tick}`)];
     case "accept":
       return [kind("Accept"), t.counterparty ? h("span", { class: "who" }, `from ${station(t.counterparty)}`) : null,
               t.we_give ? giveGet(t.we_give, t.we_get) : h("span", { class: "rid" }, t.offer_id)];
     case "advertise":
-      return [kind("Advertise"), h("span", { class: "word" }, "selling"), resourceList(t.selling),
-              h("span", { class: "word" }, "· seeking"), resourceList(t.seeking),
-              h("span", { class: "muted", style: "font-size:12px" }, `until t${t.expires_tick}`)];
+      return [kind("Advertise"), h("span", { style: "color:var(--card-muted)" }, "selling"), resourceList(t.selling),
+              h("span", { style: "color:var(--card-muted)" }, "· seeking"), resourceList(t.seeking)];
     case "withdraw":
       return [kind("Withdraw"), t.counterparty ? h("span", { class: "who" }, `offer to ${station(t.counterparty)}`) : null,
               h("span", { class: "rid" }, t.object_id)];
@@ -586,142 +1270,47 @@ function actionLine(a) {
       return [kind(t.kind || "Action"), h("span", {}, a.description)];
   }
 }
-
-function actionDetail(a) {
-  if (a.status === "ok" || !a.detail) return null;
-  // RATE_LIMITED -> rate limited
-  return a.status === "failed" ? a.detail.replace(/_/g, " ").toLowerCase() : a.detail;
-}
-
-function renderActions() {
+function renderLog() {
   const ac = data.actions;
-  const totals = ac.totals || {};
-  const ld = ac.last_decision;
-  const feed = [];
+  const rows = [];
   let group = null;
   for (const a of ac.recent) {
     if (a.world_version !== group) {
       group = a.world_version;
       const n = ac.recent.filter((x) => x.world_version === group).length;
-      feed.push(h("div", { class: "tick-head" },
-        h("span", { class: "display", style: "font-weight:600" }, `Tick ${fmt(a.tick)}`),
-        h("span", { class: "mono muted", style: "font-size:12px" }, `v${fmt(a.world_version)}`),
+      rows.push(h("div", { class: "tick-head" },
+        h("span", { class: "display", style: "font-size:15px" }, `Tick ${fmt(a.tick)}`),
+        h("span", { class: "num", style: "font-size:12px; font-weight:800; color:var(--card-muted)" }, `v${fmt(a.world_version)}`),
         h("span", { class: "right" }, plural(n, "action"))));
     }
     const st = STATUS[a.status] || { icon: "?", label: a.status, tone: "neutral" };
-    const detail = actionDetail(a);
-    feed.push(h("div", { class: "act" },
+    const detail = a.status === "ok" || !a.detail ? null : a.status === "failed" ? a.detail.replace(/_/g, " ").toLowerCase() : a.detail;
+    rows.push(h("div", { class: "act" },
       h("div", { class: "state" }, badge(st.tone, st.icon, st.label)),
       h("div", { class: "what" },
         h("div", { class: "line" }, actionLine(a)),
         a.reason ? h("span", { class: "why" }, a.reason) : null,
         detail ? h("span", { class: `detail ${st.tone}` }, detail) : null,
         a.request_id ? h("span", { class: "rid" }, a.request_id) : null),
-      h("div", { class: "score" }, h("span", { class: "label" }, "Score"), h("span", { class: "v" }, a.score.toFixed(2)))));
+      h("span", { class: "score", title: "score" }, a.score.toFixed(2))));
   }
-  const tally = ["sent", "ok", "failed", "rejected", "error", "skipped"]
-    .filter((k) => totals[k])
-    .map((k) => badge(STATUS[k].tone, STATUS[k].icon, `${fmt(totals[k])} ${TALLY_WORD[k]}`));
-  const slotPct = ac.results_cap ? (100 * ac.results_used) / ac.results_cap : 0;
-  $("actions").replaceChildren(
-    h("div", { class: "panel-head" },
-      h("div", { class: "panel-top" },
-        h("div", { class: "fact" },
-          h("h2", {}, "What the agent is doing"),
-          h("span", { class: "sub" }, ld ? `Decided ${plural(ld.count, "action")} at tick ${fmt(ld.tick)}` : "No decision yet")),
-        h("div", { class: "slots-used", title: "stored command results used / cap" },
-          h("span", { class: "label" }, "Result slots used"),
-          h("span", { class: "mono num", style: "font-size:13px;color:var(--ink-2)" }, `${fmt(ac.results_used)} / ${fmt(ac.results_cap)}`),
-          h("div", { class: "track" }, h("span", { style: `width:${slotPct}%` })))),
-      tally.length ? h("div", { class: "tally" }, tally) : null),
-    feed.length
-      ? h("div", { class: "feed" }, feed)
-      : h("div", { class: "empty", style: "padding:18px 22px" },
-          "The agent has not decided anything yet. The scripted exercise drives the connection itself, so it shows no actions here."));
+  const ld = ac.last_decision;
+  $("log-sub").textContent = `${ld ? `last decision t${ld.tick}` : "no decision yet"} · ${fmt(ac.results_used)} / ${fmt(ac.results_cap)} result slots used`;
+  $("log-body").replaceChildren(...(rows.length ? rows : [h("div", { class: "empty", style: "padding:18px 22px" },
+    "The agent has not decided anything yet. The scripted exercise drives the connection itself, so it shows no actions here.")]));
 }
-
-// --- market ---------------------------------------------------------------------------------------
-function renderMarket() {
-  const of = data.offers;
-  const tr = data.trades;
-  const hi = of.history;
-  const used = of.outgoing.length;
-  const full = used >= of.max_outgoing;
-
-  const incoming = of.incoming.map((o) => h("div", { class: "offer-card", title: o.offer_id },
-    h("div", { class: "top" },
-      h("span", { class: "display", style: "font-weight:600;font-size:15px" }, station(o.counterparty)),
-      h("span", { class: "muted", style: "font-size:12px" }, "proposes"),
-      h("span", { class: "left" }, ticksLeft(o.ticks_left))),
-    h("div", { class: "sides" },
-      h("div", { class: "fact" }, h("span", { class: "label" }, "We get"), bundle(o.we_get)),
-      h("div", { class: "fact" }, h("span", { class: "label" }, "We give"), bundle(o.we_give)))));
-
-  const outgoing = of.outgoing.map((o) => h("div", { class: "row", title: o.offer_id },
-    h("span", { class: "with" }, `→ ${o.counterparty}`),
-    bundle(o.we_give), arrow(), bundle(o.we_get),
-    h("span", { class: "end" }, ticksLeft(o.ticks_left))));
-
-  const endedTotal = ENDED.reduce((n, [k]) => n + (hi[k] || 0), 0);
-  const ended = ENDED.filter(([k]) => hi[k]);
-
-  const trades = tr.recent.map((t) => h("div", { class: "row", title: t.transaction_id },
-    h("span", { class: "tick" }, `t${t.settled_tick}`),
-    h("span", { class: "with" }, t.counterparty),
-    bundle(t.we_gave, { sign: "−" }), bundle(t.we_got, { sign: "+" }),
-    h("span", { class: "end muted" }, t.we_proposed ? "we proposed" : "they proposed")));
-
-  $("market").replaceChildren(
-    h("section", {},
-      h("div", { class: "section-head" }, h("h2", {}, "Waiting on us"),
-        h("span", { class: "dim" }, `${plural(of.incoming.length, "offer")} we can accept`)),
-      incoming.length ? incoming : h("div", { class: "empty" }, "Nothing addressed to us.")),
-    h("section", {},
-      h("div", { class: "section-head" }, h("h3", {}, "Our open offers"),
-        h("span", { style: "display:flex;align-items:center;gap:10px" },
-          h("span", { class: "slotbar", "aria-hidden": "true", style: `width:${Math.min(120, of.max_outgoing * 17)}px` },
-            Array.from({ length: of.max_outgoing }, (_, i) => h("span", { class: i < used ? "on" : "" }))),
-          h("span", { class: `num ${full ? "warning toned" : "dim"}`, style: "font-size:13px" },
-            full ? `all ${fmt(of.max_outgoing)} slots full` : `${fmt(used)} of ${fmt(of.max_outgoing)} slots`))),
-      outgoing.length ? outgoing : h("div", { class: "empty" }, "No open offers of ours.")),
-    h("section", {},
-      h("div", { class: "section-head" }, h("h3", {}, "How our offers ended"),
-        h("span", { class: "dim num", title: "every offer we sent or received this run" }, `${fmt(hi.total)} this run`)),
-      endedTotal
-        ? [h("div", { class: "stack", "aria-hidden": "true" },
-             ended.map(([k, colour]) => h("span", { style: `width:${(100 * hi[k]) / endedTotal}%; background:${colour}` }))),
-           h("div", { class: "legend" }, ended.map(([k, colour]) =>
-             h("span", {}, h("span", { class: "swatch", style: `background:${colour}` }), h("b", {}, fmt(hi[k])), ` ${k.replace("_", " ")}`)))]
-        : h("div", { class: "empty" }, "None have ended yet.")),
-    h("section", {},
-      h("div", { class: "section-head" }, h("h3", {}, "Settled trades"),
-        h("span", { class: "dim num" }, `${fmt(tr.total)} this run`)),
-      trades.length ? trades : h("div", { class: "empty" }, "No trades settled yet.")));
+function openLog() {
+  renderLog();
+  $("log").showModal();
 }
+$("log-close").addEventListener("click", () => $("log").close());
 
-// The sparklines' numbers as a table, newest tick first.
-function renderHistory() {
-  const res = data.reserves;
-  const ticks = res.length ? res[0].history.map((p) => p[0]) : [];
-  const details = $("history");
-  details.replaceChildren(
-    h("summary", {}, `Reserve history (last ${plural(ticks.length, "tick")})`),
-    h("div", { class: "scroll" }, h("table", {},
-      h("thead", {}, h("tr", {}, h("th", {}, "Tick"),
-        res.map((r) => h("th", {}, h("span", { class: "chip", style: "justify-content:flex-end" }, h("span", { class: `dot ${r.resource}` }), r.resource))))),
-      h("tbody", {}, ticks.map((t, i) => i).reverse().map((i) => h("tr", {},
-        h("td", {}, ticks[i]),
-        res.map((r) => h("td", {}, fmt(r.history[i][1])))))))));
-  details.open = historyOpen;
-}
-
-// --- page ----------------------------------------------------------------------------------------
+// --- page -----------------------------------------------------------------------------------------
 function render() {
   renderBar();
   const ready = data && data.header;
   $("waiting").hidden = !!ready;
-  $("content").hidden = !ready;
-  $("content").style.display = ready ? "contents" : "none";
+  $("main").hidden = !ready;
   const dash = data && data.dashboard;
   $("footer").replaceChildren(dash && dash.errors
     ? `dashboard: ${dash.errors} internal error${dash.errors === 1 ? "" : "s"} (trading unaffected) · last: ${dash.last_error}`
@@ -729,24 +1318,47 @@ function render() {
   if (!ready) return;
 
   const hd = data.header;
+  if (hd.run_id !== runId) {
+    // A new run: its trades are new, and the old selection may not exist.
+    runId = hd.run_id;
+    seenTrades = new Set();
+    firstBatch = true;
+    $("ships").replaceChildren();
+  }
+  if (selected && selected !== "home" && !data.stations.some((st) => st.station === selected)) selected = null;
   document.title = `${hd.station} · t${hd.tick}/${hd.duration_ticks} · Bazaar`;
   renderVerdict();
-  $("vitals").replaceChildren(healthCard(), ...data.reserves.map(reserveCard));
-  renderActions();
-  renderMarket();
-  renderHistory();
+  if (hovered.cargo) stale.cargo = true; else renderCargo();
+  renderMap();
+  renderInspector();
+  renderAgent();
+  if ($("log").open) { if (hovered.log) stale.log = true; else renderLog(); }
 }
 
-$("history").addEventListener("toggle", (e) => { historyOpen = e.target.open; });
+$("home-btn").addEventListener("click", () => select("home"));
+holdWhileHovered("cargo", "cargo", renderCargo);
+holdWhileHovered("log-body", "log", renderLog);
+
+// The stage keeps its own 720x600 coordinates; only its scale follows the window.
+const mapBox = $("map"), stage = $("stage");
+new ResizeObserver(() => {
+  const scale = Math.min(mapBox.clientWidth / STAGE.w, mapBox.clientHeight / STAGE.h);
+  stage.style.setProperty("--s", Math.max(0.3, scale || 1).toFixed(3));
+}).observe(mapBox);
 
 function connect() {
   const scheme = location.protocol === "https:" ? "wss" : "ws";
   const ws = new WebSocket(`${scheme}://${location.host}/ws`);
   ws.onopen = () => { socketOpen = true; $("main").classList.remove("dimmed"); updateLive(); };
   ws.onmessage = (event) => {
-    data = JSON.parse(event.data);
+    latest = JSON.parse(event.data);
     lastMessageAt = Date.now();
-    render();
+    if (!paused || !data || !data.header) {
+      data = latest;
+      render();
+    } else {
+      updateLive();
+    }
   };
   ws.onclose = () => {
     // Keep the last picture, dimmed: after a run ends it is the thing worth reading.
