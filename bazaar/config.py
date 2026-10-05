@@ -165,85 +165,73 @@ DEFAULT_SCROOGE = ScroogeWeights()
 
 
 @dataclass(frozen=True)
-class HustlerWeights:
-    """What the Hustler agent cares about, and how much.
+class JesusWeights:
+    """How generous the Jesus agent is, and where it draws its lines.
 
-    The Hustler's thesis is that volume beats margin: every settled trade moves
-    resources toward whoever values them, and standing still earns nothing.  So
-    it keeps a listing up at all times, offers to everyone who will look at it,
-    and takes any deal that is not actually bad.
-
-    The one thing it will not do is trade itself to death, which is what
-    ``floor_ticks`` is for.
-
-    Its currency is its specialty.  The station makes more of it every tick
-    while everything else only drains, so the specialty is what it pays with,
-    generously and to anyone selling what it lacks, and never what it buys.
-
-    It does not hoard.  Once it holds ``enough_ticks`` of something it stops
-    buying it, and whatever is above ``keep_ticks`` is given to peers that ask.
+    Every line is in ticks of cover: stock divided by upkeep.
     """
 
-    #: A short lookahead on purpose: the Hustler trades on what is in front of
-    #: it, not on what it might need in ten ticks.
-    horizon: int = 2
-    buffer: int = 1
-
-    #: The hard floor, in ticks of cover. Nothing may take a resource below it.
-    #: This is the only line the Hustler will not cross.
+    # --- the lines -----------------------------------------------------------
+    #: Nothing is ever paid out below this.
     floor_ticks: float = 2.0
-
-    #: Prices are deliberately flat, so few trades look unattractive.
-    price_deficit: float = 2.0
-    price_neutral: float = 1.0
-    price_surplus: float = 0.75
-    #: What a unit of our own specialty is worth while it is above the floor.
-    #: Production refills it every tick, so parting with it costs little.
-    price_specialty: float = 0.25
-
-    #: How much value the Hustler will knowingly give up to keep a trade
-    #: moving. A small loss is the cost of doing business; this is set wide
-    #: enough to swallow a one-for-two swap of spare goods, which is the
-    #: bread-and-butter trade this agent exists to make.
-    acceptable_loss: float = 1.0
-
-    #: Units offered per unit sought, and how much to ask for at a time.
-    offer_ratio: int = 1
-    offer_receive_qty: int = 1
-    #: Several offers may go to the same peer, unlike the other agents.
-    max_offers_per_peer: int = 2
-
-    #: Offers paid in the specialty are sized separately: a bigger lot, at a
-    #: price a peer will notice.  Three for one is roughly what the live run
-    #: could afford: about 570 components held or made over 120 ticks, against
-    #: about 200 water and food to buy.  Lower it if the specialty runs dry.
-    specialty_offer_ratio: int = 3
-    specialty_receive_qty: int = 2
-    #: Offer the specialty even to a peer whose listing does not seek it.  A
-    #: listing is a hint, not a contract, and a peer selling what we lack may
-    #: well take a good price for it.
-    unsolicited_specialty: bool = True
-
-    #: Two lines per resource, in ticks of cover.  Below ``enough_ticks`` it is
-    #: worth buying; above ``keep_ticks`` the rest is surplus, given away.  The
-    #: gap stops a resource being bought one tick and given away the next.  A
-    #: live run bought 152 water while already holding 90.
+    #: Past this a resource is no longer bought, or taken as a gift.
     enough_ticks: float = 20.0
+    #: Above this the rest is surplus, and given away.  The gap from
+    #: ``enough_ticks`` stops a resource being bought one tick and given away
+    #: the next.  A live run bought 152 water while already holding 90.
     keep_ticks: float = 40.0
     #: Both lines are capped at what is left of the run plus this margin, so
     #: near the end everything the station will not burn goes to someone who
     #: might.
     end_margin_ticks: int = 3
 
-    #: Surplus goes out as zero-price offers of ``gift_lot`` units, only to
-    #: peers whose listing seeks it.
+    # --- pricing -------------------------------------------------------------
+    #: A short lookahead on purpose: it trades on what is in front of it.  Less
+    #: than ``horizon`` ticks of upkeep plus ``buffer`` units on hand is priced
+    #: as a deficit, exactly that much as neutral, more as surplus.
+    horizon: int = 2
+    buffer: int = 1
+    #: Deliberately flat, so few trades look unattractive.
+    price_deficit: float = 2.0
+    price_neutral: float = 1.0
+    price_surplus: float = 0.75
+    #: The specialty, while any is held.  It refills every tick, so parting
+    #: with it costs little.
+    price_specialty: float = 0.25
+    #: Value it will knowingly give up to keep goods moving: wide enough to
+    #: swallow a one-for-two swap of spare goods.
+    acceptable_loss: float = 1.0
+
+    # --- buying --------------------------------------------------------------
+    #: Paid in the specialty: ``specialty_offer_ratio`` units for each of the
+    #: ``specialty_receive_qty`` asked for.  Three for one is roughly what a
+    #: live run could afford: about 570 components held or made over 120
+    #: ticks, against about 200 water and food to buy.  Lower it if the
+    #: specialty runs dry.
+    specialty_offer_ratio: int = 3
+    specialty_receive_qty: int = 2
+    #: Paid in anything else spare: units offered per unit sought, and how
+    #: many to ask for.
+    offer_ratio: int = 1
+    offer_receive_qty: int = 1
+    #: Offer the specialty even to a peer whose listing does not seek it.  A
+    #: listing is a hint, not a contract.
+    unsolicited_specialty: bool = True
+    #: Open offers per peer.  Trades count every open offer to that peer;
+    #: gifts count only gifts.
+    max_offers_per_peer: int = 2
+
+    # --- giving --------------------------------------------------------------
+    #: Surplus goes out in lots this size, only to peers whose listing seeks it.
     gift_lot: int = 5
-    gift_ttl_ticks: int = 3
 
-    #: Keep listings short-lived so they are refreshed often.
-    advertisement_ttl_ticks: int = 3
+    # --- expiries, in ticks, capped by the run's rules ------------------------
+    #: Short-lived, so everything is refreshed often.
     offer_ttl_ticks: int = 3
+    gift_ttl_ticks: int = 3
+    advertisement_ttl_ticks: int = 3
 
+    # --- ranking -------------------------------------------------------------
     #: Offers for what we need outrank gifts, which outrank listings, which
     #: outrank tidying up.
     offer_bonus: float = 2.0
@@ -252,7 +240,7 @@ class HustlerWeights:
     withdraw_score: float = 0.25
 
 
-DEFAULT_HUSTLER = HustlerWeights()
+DEFAULT_JESUS = JesusWeights()
 
 
 @dataclass(frozen=True)
@@ -274,7 +262,7 @@ class DashboardSettings:
     history_ticks: int = 60
 
     #: Ticks of cover below which a reserve is shown as critical, then low.
-    #: Critical matches the Hustler's floor; low, Scrooge's danger line.
+    #: Critical matches Jesus's floor; low, Scrooge's danger line.
     critical_cover_ticks: float = 2.0
     low_cover_ticks: float = 5.0
     #: Where each reserve's cover gauge reads full.  Past this, more stock

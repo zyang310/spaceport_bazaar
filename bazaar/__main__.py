@@ -1,6 +1,6 @@
 """Command line entry point.
 
-    python -m bazaar --policy scripted|utility|scrooge|hustler [--shadow POLICY]
+    python -m bazaar --policy scripted|utility|scrooge|jesus [--shadow POLICY]
                      [--capture-fixtures] [--url URL] [--max-seconds N]
                      [--no-dashboard] [--dashboard-port N]
 
@@ -42,7 +42,7 @@ def parse_args(argv=None) -> argparse.Namespace:
         help=(
             "scripted replays the guide's exercise; utility trades on projected "
             "need; scrooge defends its reserves and never gives anything away; "
-            "hustler trades as often as the rules allow"
+            "jesus trades freely, keeps enough and gives the rest away"
         ),
     )
     parser.add_argument(

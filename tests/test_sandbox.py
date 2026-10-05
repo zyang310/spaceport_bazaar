@@ -16,7 +16,7 @@ from websockets.asyncio.client import connect
 from websockets.exceptions import InvalidStatus
 
 from bazaar import config
-from bazaar.brain.policy import HustlerPolicy
+from bazaar.brain.policy import JesusPolicy
 from bazaar.dashboard import Dashboard
 from bazaar.network.transport import BazaarClient, ProtocolErrorReceived
 from bazaar.runlog import RunLog
@@ -286,7 +286,7 @@ def test_the_real_client_trades_against_the_sandbox_and_the_dashboard_sees_it(tm
         dashboard = Dashboard()
         async with BazaarClient(server.url, "sandbox", on_state=fan_out(dashboard.on_state)) as client:
             outcome = await run_utility(
-                client, HustlerPolicy(), RunLog(tmp_path), RunOutcome(), 0.6, activity=dashboard, session="s1"
+                client, JesusPolicy(), RunLog(tmp_path), RunOutcome(), 0.6, activity=dashboard, session="s1"
             )
         return outcome, dashboard
 

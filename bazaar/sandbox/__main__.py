@@ -5,7 +5,7 @@
 
 Then, in another terminal, point any client at it:
 
-    BAZAAR_TOKEN=sandbox python -m bazaar --policy hustler --url ws://127.0.0.1:3002/ws
+    BAZAAR_TOKEN=sandbox python -m bazaar --policy jesus --url ws://127.0.0.1:3002/ws
 
 and open the dashboard it prints.  Any token is accepted; ``sandbox-P03``
 plays station P03, so two clients can play against each other while bots play
@@ -76,7 +76,7 @@ async def main_async(args: argparse.Namespace) -> None:
                  "is another sandbox still running? Stop it with Ctrl+C, or pass --port.")
     print(f"sandbox: {url}  run {world.run_id}, {settings.stations} stations, "
           f"{settings.duration_ticks} ticks of {settings.tick_duration_ms} ms")
-    print(f"connect: BAZAAR_TOKEN=sandbox python -m bazaar --policy hustler --url {url}")
+    print(f"connect: BAZAAR_TOKEN=sandbox python -m bazaar --policy jesus --url {url}")
     print(f"         (token 'sandbox-P03' plays P03; any other token plays {settings.station})")
     print("waiting for a client to declare ready ...")
     try:

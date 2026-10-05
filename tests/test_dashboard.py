@@ -99,7 +99,7 @@ def test_net_per_tick_is_production_minus_upkeep():
 
 
 def test_a_resource_we_make_faster_than_we_burn_is_never_short():
-    # The hustler sells its specialty as fast as it is made, so the hold sits near zero.
+    # Jesus sells its specialty as fast as it is made, so the hold sits near zero.
     me = observation(inventory=bundle(0, 30, 30), last_production=bundle(6, 0, 0), upkeep_per_tick=bundle(1, 1, 1))
     view = render(state(observation=me))
     water = reserve(view, "water")
@@ -448,13 +448,13 @@ def test_failed_commands_are_counted_by_the_tick_they_were_decided_in():
 
 
 def test_the_hub_keeps_what_changed_and_forgets_it_when_a_new_run_starts():
-    dashboard = Dashboard(agent="hustler")
+    dashboard = Dashboard(agent="jesus")
     dashboard.on_state(state(tick=3))
     dashboard.on_state(state(tick=3, transactions=[transaction(settled_tick=3)]))
     assert [e["kind"] for e in dashboard.events] == ["trade"]
     view = dashboard.view()
     assert view["highlights"][0]["kind"] == "trade"
-    assert view["header"]["agent"] == "hustler"
+    assert view["header"]["agent"] == "jesus"
     dashboard.failures[3] = Counter(RATE_LIMITED=1)
     dashboard.on_state(state(tick=0, run_id="run-2"))
     assert list(dashboard.events) == [] and dashboard.failures == {}

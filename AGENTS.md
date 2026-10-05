@@ -24,22 +24,22 @@ Where this repo's docs and the starter README disagree, **the README wins.**
 ## 2. Commands
 
 ```bash
-# Tests — 287 of them, all must pass. Fast (~2s).
+# Tests — 304 of them, all must pass. Fast (~2s).
 python -m pytest tests/ -q
 
 # One file
 python -m pytest tests/test_scrooge.py -q
 
 # Run the client against the live game (token from .env)
-python -m bazaar --policy hustler
+python -m bazaar --policy jesus
 
 # Run one agent while logging what another would have done, sending nothing
-python -m bazaar --policy scrooge --shadow hustler
+python -m bazaar --policy scrooge --shadow jesus
 
 # Every run serves a live dashboard at http://127.0.0.1:8765/ (JSON at /view.json).
 # Turn it off, or move it
-python -m bazaar --policy hustler --no-dashboard
-python -m bazaar --policy hustler --dashboard-port 8800
+python -m bazaar --policy jesus --no-dashboard
+python -m bazaar --policy jesus --dashboard-port 8800
 
 # The bundled practice server (start it first, in another terminal)
 cd artifacts/bazaar-protobuf-starter-linux && ./spaceport-validate-linux-arm64 --codec protobuf
@@ -48,7 +48,7 @@ python -m bazaar --policy scripted --url ws://127.0.0.1:3001/ws
 # A local game with bot traders on the other stations: live rules, 1s ticks.
 # Start it, then point any client at it. Any token works; sandbox-P03 plays P03.
 python -m bazaar.sandbox
-BAZAAR_TOKEN=sandbox python -m bazaar --policy hustler --url ws://127.0.0.1:3002/ws
+BAZAAR_TOKEN=sandbox python -m bazaar --policy jesus --url ws://127.0.0.1:3002/ws
 
 # Standalone diagnostics (raw protobuf, practice server only)
 python -m bazaar.network.walkthrough happy|edge|errors
@@ -154,7 +154,7 @@ Existing policies, as reference points:
 | --- | --- |
 | `utility` | Trade on projected need over a 5-tick horizon. The baseline. |
 | `scrooge` | Defend reserves. Only shops when short. Never gives anything away. |
-| `hustler` | Volume over margin. Always listed, accepts at a small loss. Pays in its specialty, to anyone, and never buys it. |
+| `jesus` | Trade freely, keep enough, give the rest away. Always listed, accepts at a small loss, pays in its specialty and never buys it. Stops buying past 20 ticks of cover; above 40 (or what the run has left) gives the rest to peers who seek it. |
 | `scripted` | Not an agent — replays the guide's 10-step exercise. Drives the connection directly because it must react to results and protocol errors, not just states. |
 
 ---
@@ -221,7 +221,7 @@ Match the surrounding code. Concretely:
 ## 9. Before you finish
 
 ```bash
-python -m pytest tests/ -q                                    # 287 passing
+python -m pytest tests/ -q                                    # 304 passing
 grep -rn "bazaar_pb2" bazaar/ --include="*.py" | grep -v "^bazaar/generated/"
 git status --short                                            # no .env, no webb_docs/
 ```

@@ -36,6 +36,16 @@ BUNDLE_ORDER = (
 )
 
 
+def one(resource: model.Resource, qty: int) -> tuple[int, int, int]:
+    """A bundle tuple holding ``qty`` of one resource and nothing else."""
+    return tuple(qty if r == resource else 0 for r in BUNDLE_ORDER)
+
+
+def label(resource: model.Resource) -> str:
+    """``RESOURCE_WATER`` as ``WATER``, for reasons a person will read."""
+    return resource.name.removeprefix("RESOURCE_")
+
+
 @runtime_checkable
 class Policy(Protocol):
     """Decides what to do, given only what the server reported."""
@@ -134,15 +144,13 @@ class BasePolicy(abc.ABC):
         tick is not something to project forward -- the stock actually on
         hand is the one number this can trust.
         """
-        observation = state.observation
-        ticks = {}
-        for resource in self._order(state):
-            upkeep = observation.upkeep_per_tick.get(resource)
-            if upkeep <= 0:
-                ticks[resource] = math.inf
-            else:
-                ticks[resource] = observation.inventory.get(resource) / upkeep
-        return ticks
+        inventory = state.observation.inventory
+        return {r: self._ticks_of(state, r, inventory.get(r)) for r in self._order(state)}
+
+    def _ticks_of(self, state: model.State, resource: model.Resource, units: float) -> float:
+        """How many ticks ``units`` of a resource would last at its upkeep."""
+        upkeep = state.observation.upkeep_per_tick.get(resource)
+        return math.inf if upkeep <= 0 else units / upkeep
 
     def value(self, prices, bundle: model.Bundle) -> float:
         """What a bundle is worth to us, in our own prices."""

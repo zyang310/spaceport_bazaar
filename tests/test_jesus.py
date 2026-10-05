@@ -1,8 +1,8 @@
-"""Hustler: volume over margin, with one floor it will not cross."""
+"""Jesus: trade freely, keep enough, give the rest away."""
 
 from bazaar import actions
-from bazaar.brain.policy.hustler import HustlerPolicy
-from bazaar.config import HustlerWeights
+from bazaar.brain.policy.jesus import JesusPolicy
+from bazaar.config import JesusWeights
 
 from .factories import (
     COMPONENTS,
@@ -21,7 +21,7 @@ from .factories import (
 BUSY = rules(new_commands_per_station_per_tick=6, max_open_outgoing_offers=6)
 
 #: Something worth buying.  The factory's 30 of everything is more than
-#: ``enough_ticks`` of cover, and a Hustler that holds enough rightly buys none.
+#: ``enough_ticks`` of cover, and an agent that holds enough rightly buys none.
 HUNGRY = observation(inventory=bundle(30, 10, 10), upkeep_per_tick=bundle(1, 1, 1))
 
 
@@ -32,7 +32,7 @@ def build(**overrides):
 
 
 def decide(**overrides):
-    return HustlerPolicy().decide(build(**overrides))
+    return JesusPolicy().decide(build(**overrides))
 
 
 def peer(station="P02", selling=(FOOD, COMPONENTS), seeking=(WATER, FOOD)):
@@ -41,55 +41,66 @@ def peer(station="P02", selling=(FOOD, COMPONENTS), seeking=(WATER, FOOD)):
     )
 
 
+def of(decided, kind):
+    return [a for a in decided if isinstance(a, kind)]
+
+
+def listing(decided):
+    return of(decided, actions.Advertise)[0]
+
+
+def offers_in(decided):
+    """Offers that ask for something back; gifts are counted separately."""
+    return [a for a in of(decided, actions.Offer) if any(a.receive)]
+
+
+def gifts_in(decided):
+    return [a for a in of(decided, actions.Offer) if not any(a.receive)]
+
+
 # --- always visible ---------------------------------------------------------
 
 def test_it_advertises_even_when_it_needs_nothing():
     """A peer who cannot find us cannot trade with us."""
-    ads = [a for a in decide() if isinstance(a, actions.Advertise)]
+    ads = of(decide(), actions.Advertise)
     assert len(ads) == 1 and ads[0].selling
 
 
 def test_no_churn_when_the_listing_already_matches():
-    first = [a for a in decide() if isinstance(a, actions.Advertise)][0]
+    first = listing(decide())
     mine = advertisement(
         advertisement_id="mine",
         station_id="P01",
         selling=first.selling,
         seeking=first.seeking,
     )
-    assert not any(isinstance(a, actions.Advertise) for a in decide(advertisements=[mine]))
+    assert not of(decide(advertisements=[mine]), actions.Advertise)
 
 
 # --- offers to everyone, repeatedly -----------------------------------------
 
 def test_it_sends_several_offers_to_the_same_peer():
-    offers = [a for a in decide(advertisements=[peer()]) if isinstance(a, actions.Offer)]
+    offers = of(decide(advertisements=[peer()]), actions.Offer)
     assert len(offers) == 2
     assert {o.recipient_id for o in offers} == {"P02"}
 
 
 def test_offers_per_peer_are_capped_and_configurable():
-    one_each = HustlerPolicy(HustlerWeights(max_offers_per_peer=1))
+    one_each = JesusPolicy(JesusWeights(max_offers_per_peer=1))
     built = build(advertisements=[peer()])
-    assert len([a for a in one_each.decide(built) if isinstance(a, actions.Offer)]) == 1
+    assert len(of(one_each.decide(built), actions.Offer)) == 1
 
 
 def test_existing_open_offers_count_against_the_per_peer_cap():
     mine = offer(
         offer_id="ours", proposer_id="P01", recipient_id="P02", give=(1, 0, 0), receive=(0, 1, 0)
     )
-    offers = [
-        a for a in decide(advertisements=[peer()], offers=[mine]) if isinstance(a, actions.Offer)
-    ]
+    offers = of(decide(advertisements=[peer()], offers=[mine]), actions.Offer)
     assert len(offers) == 1  # one of the two slots for this peer is already used
 
 
 def test_it_offers_to_every_peer_it_can_see():
-    offers = [
-        a
-        for a in decide(advertisements=[peer("P03"), peer("P02")])
-        if isinstance(a, actions.Offer)
-    ]
+    offers = of(decide(advertisements=[peer("P03"), peer("P02")]), actions.Offer)
     assert {o.recipient_id for o in offers} == {"P02", "P03"}
 
 
@@ -98,15 +109,12 @@ def test_peers_are_considered_in_station_order():
         advertisements=[peer("P03"), peer("P02")],
         rules=rules(new_commands_per_station_per_tick=1, max_open_outgoing_offers=1),
     )
-    offers = [a for a in decided if isinstance(a, actions.Offer)]
-    assert [o.recipient_id for o in offers] == ["P02"]
+    assert [o.recipient_id for o in of(decided, actions.Offer)] == ["P02"]
 
 
 def test_no_offer_to_a_peer_that_sells_nothing_we_want():
-    assert not any(
-        isinstance(a, actions.Offer)
-        for a in decide(advertisements=[peer(selling=(WATER,), seeking=(FOOD,))])
-    )
+    decided = decide(advertisements=[peer(selling=(WATER,), seeking=(FOOD,))])
+    assert not of(decided, actions.Offer)
 
 
 # --- accepting nearly everything ---------------------------------------------
@@ -115,39 +123,39 @@ def test_no_offer_to_a_peer_that_sells_nothing_we_want():
 
 def test_a_gift_is_accepted():
     decided = decide(offers=[offer(offer_id="gift-1", give=(0, 0, 1), receive=(0, 0, 0))])
-    assert [a.offer_id for a in decided if isinstance(a, actions.Accept)] == ["gift-1"]
+    assert [a.offer_id for a in of(decided, actions.Accept)] == ["gift-1"]
 
 
 def test_an_even_trade_is_accepted():
-    """Scrooge would refuse this; the Hustler wants the goods moving."""
+    """Scrooge would refuse this; Jesus wants the goods moving."""
     even = offer(offer_id="even", give=(0, 0, 1), receive=(0, 1, 0))
-    assert any(isinstance(a, actions.Accept) for a in decide(offers=[even]))
+    assert of(decide(offers=[even]), actions.Accept)
 
 
 def test_a_small_loss_is_accepted_as_the_cost_of_doing_business():
     slight = offer(offer_id="slight", give=(0, 0, 1), receive=(0, 2, 0))
-    assert any(isinstance(a, actions.Accept) for a in decide(offers=[slight]))
+    assert of(decide(offers=[slight]), actions.Accept)
 
 
 def test_a_large_loss_is_still_refused():
     awful = offer(offer_id="awful", give=(0, 0, 1), receive=(0, 9, 0))
-    assert not any(isinstance(a, actions.Accept) for a in decide(offers=[awful]))
+    assert not of(decide(offers=[awful]), actions.Accept)
 
 
 def test_the_acceptable_loss_is_configurable():
     built = build(offers=[offer(offer_id="o", give=(0, 0, 1), receive=(0, 4, 0))])
-    reckless = HustlerPolicy(HustlerWeights(acceptable_loss=10.0))
-    assert any(isinstance(a, actions.Accept) for a in reckless.decide(built))
-    assert not any(isinstance(a, actions.Accept) for a in HustlerPolicy().decide(built))
+    reckless = JesusPolicy(JesusWeights(acceptable_loss=10.0))
+    assert of(reckless.decide(built), actions.Accept)
+    assert not of(JesusPolicy().decide(built), actions.Accept)
 
 
 def test_an_unaffordable_offer_is_refused():
     broke = observation(inventory=bundle(1, 1, 1))
     raid = offer(offer_id="x", give=(0, 0, 1), receive=(9, 0, 0))
-    assert not any(isinstance(a, actions.Accept) for a in decide(observation=broke, offers=[raid]))
+    assert not of(decide(observation=broke, offers=[raid]), actions.Accept)
 
 
-# --- the one line it holds ----------------------------------------------------
+# --- the floor -----------------------------------------------------------------
 
 #: Three water at one upkeep a tick is already near the floor, and components
 #: are short enough that nine of them are worth having.
@@ -156,9 +164,7 @@ THIN = observation(inventory=bundle(3, 30, 5), upkeep_per_tick=bundle(1, 1, 1))
 
 def test_it_will_not_trade_through_the_floor():
     raid = offer(offer_id="trap", give=(0, 0, 9), receive=(2, 0, 0))
-    assert not any(
-        isinstance(a, actions.Accept) for a in decide(observation=THIN, offers=[raid])
-    )
+    assert not of(decide(observation=THIN, offers=[raid]), actions.Accept)
 
 
 def test_it_never_offers_what_would_take_it_through_the_floor():
@@ -173,35 +179,24 @@ def test_the_floor_is_configurable():
         observation=THIN,
         offers=[offer(offer_id="trap", give=(0, 0, 9), receive=(2, 0, 0))],
     )
-    daring = HustlerPolicy(HustlerWeights(floor_ticks=0.0))
-    assert any(isinstance(a, actions.Accept) for a in daring.decide(built))
+    daring = JesusPolicy(JesusWeights(floor_ticks=0.0))
+    assert of(daring.decide(built), actions.Accept)
 
 
 def test_a_resource_with_no_upkeep_never_blocks_a_trade():
     """Paying out the last component is fine when nothing consumes them."""
     no_upkeep = observation(inventory=bundle(30, 5, 1), upkeep_per_tick=bundle(1, 1, 0))
     spend = offer(offer_id="ok", give=(0, 2, 0), receive=(0, 0, 1))
-    assert any(
-        isinstance(a, actions.Accept) for a in decide(observation=no_upkeep, offers=[spend])
-    )
+    assert of(decide(observation=no_upkeep, offers=[spend]), actions.Accept)
 
 
 # --- paying in what it makes ----------------------------------------------------
 # The factory station's specialty is water.
 
-def offers_in(decided):
-    """Offers that ask for something back; gifts are counted separately."""
-    return [a for a in decided if isinstance(a, actions.Offer) and any(a.receive)]
-
-
-def gifts_in(decided):
-    return [a for a in decided if isinstance(a, actions.Offer) and not any(a.receive)]
-
-
 def test_it_never_pays_for_its_own_specialty():
     """One-for-one clears the loss bar, and repeated it starves the station."""
     more_water = offer(offer_id="w", give=(3, 0, 0), receive=(0, 1, 0))
-    assert not any(isinstance(a, actions.Accept) for a in decide(offers=[more_water]))
+    assert not of(decide(offers=[more_water]), actions.Accept)
 
 
 def test_it_never_offers_to_buy_its_own_specialty():
@@ -211,7 +206,7 @@ def test_it_never_offers_to_buy_its_own_specialty():
 
 
 def test_the_listing_sells_the_specialty_and_seeks_everything_else():
-    ad = [a for a in decide() if isinstance(a, actions.Advertise)][0]
+    ad = listing(decide())
     assert ad.selling == (WATER,)
     assert ad.seeking == (FOOD, COMPONENTS)
 
@@ -223,7 +218,7 @@ def test_it_pays_in_its_specialty_rather_than_anything_scarcer():
 
 
 def test_specialty_offers_are_sized_by_config():
-    generous = HustlerPolicy(HustlerWeights(specialty_offer_ratio=5, specialty_receive_qty=1))
+    generous = JesusPolicy(JesusWeights(specialty_offer_ratio=5, specialty_receive_qty=1))
     built = build(advertisements=[peer(selling=(FOOD,), seeking=(WATER,))])
     assert [(o.give, o.receive) for o in offers_in(generous.decide(built))] == [
         ((5, 0, 0), (0, 1, 0))
@@ -238,7 +233,7 @@ def test_a_peer_seeking_nothing_is_still_offered_the_specialty():
 
 
 def test_unsolicited_offers_can_be_turned_off():
-    polite = HustlerPolicy(HustlerWeights(unsolicited_specialty=False))
+    polite = JesusPolicy(JesusWeights(unsolicited_specialty=False))
     built = build(advertisements=[peer(selling=(FOOD,), seeking=())])
     assert offers_in(polite.decide(built)) == []
 
@@ -247,26 +242,23 @@ def test_it_will_pay_several_of_its_specialty_for_one_unit_it_lacks():
     """Five water for one food would have been refused as a loss before."""
     short_of_food = observation(inventory=bundle(35, 1, 30), upkeep_per_tick=bundle(1, 1, 1))
     dear = offer(offer_id="dear", give=(0, 1, 0), receive=(5, 0, 0))
-    assert any(
-        isinstance(a, actions.Accept) for a in decide(observation=short_of_food, offers=[dear])
-    )
+    assert of(decide(observation=short_of_food, offers=[dear]), actions.Accept)
 
 
 def test_a_specialty_with_nothing_left_is_bought_like_anything_else():
     """Once there is not even one unit of it on hand, it cannot be paid with,
-    and the Hustler falls back to treating it like anything else it lacks."""
+    and the agent falls back to treating it like anything else it lacks."""
     empty = observation(inventory=bundle(0, 30, 30), upkeep_per_tick=bundle(1, 1, 1))
     refill = offer(offer_id="refill", give=(3, 0, 0), receive=(0, 0, 1))
     decided = decide(observation=empty, offers=[refill])
-    assert any(isinstance(a, actions.Accept) for a in decided)
-    ad = [a for a in decided if isinstance(a, actions.Advertise)][0]
-    assert WATER in ad.seeking
+    assert of(decided, actions.Accept)
+    assert WATER in listing(decided).seeking
 
 
 def test_a_specialty_is_never_bought_back_as_long_as_any_of_it_remains():
-    """Two water on hand is thin, but there is still some: the Hustler does
-    not try to guess whether production will refill it, only whether the
-    hold is actually empty yet.
+    """Two water on hand is thin, but there is still some: the agent does not
+    try to guess whether production will refill it, only whether the hold is
+    actually empty yet.
 
     Before the fix, ``cover`` read a deliberately thin currency balance as a
     shortage and switched to buying it -- a live run sold its components
@@ -276,10 +268,9 @@ def test_a_specialty_is_never_bought_back_as_long_as_any_of_it_remains():
     refill = offer(offer_id="refill", give=(3, 0, 0), receive=(0, 0, 1))
     seller = peer(selling=(WATER, FOOD), seeking=(FOOD, COMPONENTS))
     decided = decide(observation=thin, offers=[refill], advertisements=[seller])
-    assert not any(isinstance(a, actions.Accept) for a in decided)
+    assert not of(decided, actions.Accept)
     assert all(o.receive[0] == 0 for o in offers_in(decided))
-    ad = [a for a in decided if isinstance(a, actions.Advertise)][0]
-    assert WATER not in ad.seeking
+    assert WATER not in listing(decided).seeking
 
 
 def test_only_the_specialty_is_offered_unasked():
@@ -292,8 +283,8 @@ def test_only_the_specialty_is_offered_unasked():
 def test_a_starving_station_offers_its_glut_to_a_peer_that_seeks_nothing():
     """Tick 90 of a live run: zero water, 279 components, and one listing up.
 
-    P09 sold everything and sought nothing, so the old Hustler found no match
-    and the station died nine ticks later still holding its components.
+    P09 sold everything and sought nothing, so the agent of the day found no
+    match and the station died nine ticks later still holding its components.
     """
     starving = observation(
         inventory=bundle(0, 8, 279),
@@ -325,9 +316,15 @@ def test_it_keeps_buying_what_drains_before_the_short_horizon_notices():
 # were made, and 32 ticks to go.  With the margin both lines cap at 35 ticks, so
 # enough is 20 ticks of cover and 55 water is surplus.
 
-GLUT = observation(
-    inventory=bundle(90, 34, 6), upkeep_per_tick=bundle(1, 1, 1), specialty=COMPONENTS
-)
+def glut(water, components=6):
+    return observation(
+        inventory=bundle(water, 34, components),
+        upkeep_per_tick=bundle(1, 1, 1),
+        specialty=COMPONENTS,
+    )
+
+
+GLUT = glut(90)
 ENDGAME = rules(new_commands_per_station_per_tick=6, max_open_outgoing_offers=6, duration_ticks=32)
 
 
@@ -348,16 +345,15 @@ def test_it_stops_buying_what_it_already_has_plenty_of():
     seller = peer("P04", selling=(WATER, FOOD), seeking=())
     decided = endgame(advertisements=[seller])
     assert offers_in(decided) == []
-    ad = [a for a in decided if isinstance(a, actions.Advertise)][0]
-    assert ad.seeking == ()
+    assert listing(decided).seeking == ()
 
 
 def test_the_lines_are_configurable():
-    greedy = HustlerPolicy(HustlerWeights(enough_ticks=100.0, keep_ticks=200.0))
-    flush = observation(
-        inventory=bundle(90, 34, 30), upkeep_per_tick=bundle(1, 1, 1), specialty=COMPONENTS
+    greedy = JesusPolicy(JesusWeights(enough_ticks=100.0, keep_ticks=200.0))
+    built = build(
+        observation=glut(90, components=30),
+        advertisements=[peer("P04", selling=(WATER,), seeking=())],
     )
-    built = build(observation=flush, advertisements=[peer("P04", selling=(WATER,), seeking=())])
     assert [o.receive for o in offers_in(greedy.decide(built))] == [(2, 0, 0)]
 
 
@@ -382,11 +378,8 @@ def test_surplus_is_shared_between_the_peers_that_seek_it():
 
 def test_gifts_never_take_a_resource_below_the_keep_line():
     """Thirty-eight water against a 35-tick line leaves three to give."""
-    just_over = observation(
-        inventory=bundle(38, 34, 6), upkeep_per_tick=bundle(1, 1, 1), specialty=COMPONENTS
-    )
     seekers = [peer(station, selling=(), seeking=(WATER,)) for station in ("P02", "P03")]
-    decided = endgame(observation=just_over, advertisements=seekers)
+    decided = endgame(observation=glut(38), advertisements=seekers)
     assert [(g.recipient_id, g.give) for g in gifts_in(decided)] == [("P02", (3, 0, 0))]
 
 
@@ -400,53 +393,47 @@ def test_open_offers_count_against_what_can_be_given():
 
 
 def test_surplus_a_peer_takes_is_not_also_given_away():
-    just_over = observation(
-        inventory=bundle(38, 34, 6), upkeep_per_tick=bundle(1, 1, 1), specialty=COMPONENTS
-    )
     asking = offer(offer_id="ask", proposer_id="P06", give=(0, 0, 1), receive=(3, 0, 0))
     decided = endgame(
-        observation=just_over,
+        observation=glut(38),
         offers=[asking],
         advertisements=[peer("P07", selling=(), seeking=(WATER,))],
     )
-    assert [a.offer_id for a in decided if isinstance(a, actions.Accept)] == ["ask"]
+    assert [a.offer_id for a in of(decided, actions.Accept)] == ["ask"]
     assert gifts_in(decided) == []
 
 
 def test_a_gift_of_something_it_has_plenty_of_is_declined():
     """The giver's surplus should reach a station that needs it."""
     more_water = offer(offer_id="w", proposer_id="P04", give=(2, 0, 0), receive=(0, 0, 0))
-    assert not any(isinstance(a, actions.Accept) for a in endgame(offers=[more_water]))
+    assert not of(endgame(offers=[more_water]), actions.Accept)
 
 
 def test_a_peer_asking_only_for_surplus_gets_it_at_any_price():
     """One component for ten water is a loss on paper, but the water is spare."""
     cheap = offer(offer_id="cheap", proposer_id="P06", give=(0, 0, 1), receive=(10, 0, 0))
-    assert any(isinstance(a, actions.Accept) for a in endgame(offers=[cheap]))
+    assert of(endgame(offers=[cheap]), actions.Accept)
 
 
 def test_a_peer_asking_for_more_than_the_surplus_is_judged_as_a_trade():
     greedy = offer(offer_id="greedy", proposer_id="P06", give=(0, 0, 1), receive=(60, 0, 0))
-    assert not any(isinstance(a, actions.Accept) for a in endgame(offers=[greedy]))
+    assert not of(endgame(offers=[greedy]), actions.Accept)
 
 
 def test_its_own_gifts_are_not_withdrawn_as_losses():
     gift = ours("gift", "P06", give=(5, 0, 0))
-    assert not any(isinstance(a, actions.Withdraw) for a in endgame(offers=[gift]))
+    assert not of(endgame(offers=[gift]), actions.Withdraw)
 
 
 def test_a_gift_it_can_no_longer_spare_is_withdrawn():
-    drained = observation(
-        inventory=bundle(37, 34, 6), upkeep_per_tick=bundle(1, 1, 1), specialty=COMPONENTS
-    )
     gift = ours("gift", "P06", give=(5, 0, 0))
-    decided = endgame(observation=drained, offers=[gift])
-    assert [a.object_id for a in decided if isinstance(a, actions.Withdraw)] == ["gift"]
+    decided = endgame(observation=glut(37), offers=[gift])
+    assert [a.object_id for a in of(decided, actions.Withdraw)] == ["gift"]
 
 
 def test_near_the_end_of_the_run_everything_it_will_not_burn_is_given():
     """Ten ticks out, the line is 13 ticks; mid-run it would be 40."""
-    whole = HustlerPolicy(HustlerWeights(gift_lot=100))
+    whole = JesusPolicy(JesusWeights(gift_lot=100))
     asker = [peer("P06", selling=(), seeking=(WATER, FOOD))]
     late = build(observation=GLUT, advertisements=asker, rules=rules(duration_ticks=10))
     early = build(observation=GLUT, advertisements=asker)
@@ -455,8 +442,7 @@ def test_near_the_end_of_the_run_everything_it_will_not_burn_is_given():
 
 
 def test_the_listing_sells_its_surplus():
-    ad = [a for a in endgame() if isinstance(a, actions.Advertise)][0]
-    assert ad.selling == (WATER, COMPONENTS)
+    assert listing(endgame()).selling == (WATER, COMPONENTS)
 
 
 # --- budget and ranking --------------------------------------------------------
@@ -479,4 +465,4 @@ def test_it_trades_far_more_than_scrooge_on_the_same_state():
     from bazaar.brain.policy.scrooge import ScroogePolicy
 
     built = state(advertisements=[peer()], rules=BUSY)
-    assert len(HustlerPolicy().decide(built)) > len(ScroogePolicy().decide(built))
+    assert len(JesusPolicy().decide(built)) > len(ScroogePolicy().decide(built))
