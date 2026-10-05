@@ -179,6 +179,9 @@ class HustlerWeights:
     Its currency is its specialty.  The station makes more of it every tick
     while everything else only drains, so the specialty is what it pays with,
     generously and to anyone selling what it lacks, and never what it buys.
+
+    It does not hoard.  Once it holds ``enough_ticks`` of something it stops
+    buying it, and whatever is above ``keep_ticks`` is given to peers that ask.
     """
 
     #: A short lookahead on purpose: the Hustler trades on what is in front of
@@ -221,12 +224,30 @@ class HustlerWeights:
     #: well take a good price for it.
     unsolicited_specialty: bool = True
 
+    #: Two lines per resource, in ticks of cover.  Below ``enough_ticks`` it is
+    #: worth buying; above ``keep_ticks`` the rest is surplus, given away.  The
+    #: gap stops a resource being bought one tick and given away the next.  A
+    #: live run bought 152 water while already holding 90.
+    enough_ticks: float = 20.0
+    keep_ticks: float = 40.0
+    #: Both lines are capped at what is left of the run plus this margin, so
+    #: near the end everything the station will not burn goes to someone who
+    #: might.
+    end_margin_ticks: int = 3
+
+    #: Surplus goes out as zero-price offers of ``gift_lot`` units, only to
+    #: peers whose listing seeks it.
+    gift_lot: int = 5
+    gift_ttl_ticks: int = 3
+
     #: Keep listings short-lived so they are refreshed often.
     advertisement_ttl_ticks: int = 3
     offer_ttl_ticks: int = 3
 
-    #: Offers outrank listings, which outrank tidying up.
+    #: Offers for what we need outrank gifts, which outrank listings, which
+    #: outrank tidying up.
     offer_bonus: float = 2.0
+    gift_score: float = 1.5
     advertise_score: float = 1.0
     withdraw_score: float = 0.25
 

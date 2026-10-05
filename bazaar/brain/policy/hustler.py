@@ -22,11 +22,18 @@ What that means concretely:
    offered first and in bulk, offered even to peers who did not ask for it, and
    never bought.  A live run died holding 283 components after spending its
    water on more of them; this is the fix.
+6. **It does not hoard.**  Past ``enough_ticks`` of cover it stops buying a
+   resource and refuses gifts of it.  Above ``keep_ticks`` the rest is
+   surplus: listed, given to any peer whose listing seeks it, and handed to
+   any peer who asks, whatever they pay.  A live run bought 152 water while
+   already holding 90, because six components for two water priced as even.
 
 The short horizon is deliberate: the Hustler trades on what is in front of it,
 not on what it might want ten ticks from now.  Tunables are in
 ``bazaar/config.py``.
 """
+
+import math
 
 from ... import actions, config
 from ...validation import model
@@ -98,6 +105,50 @@ class HustlerPolicy(BasePolicy):
             and state.observation.inventory.get(r) >= self.weights.offer_ratio
         )
 
+    # --- surplus ---------------------------------------------------------
+    def _ticks_left(self, state) -> int:
+        """What is left of the run, plus a margin for the last tick or two."""
+        return max(0, state.rules.duration_ticks - state.tick) + self.weights.end_margin_ticks
+
+    def _enough_line(self, state) -> float:
+        """Ticks of cover past which a resource is no longer worth buying."""
+        return min(self.weights.enough_ticks, self._ticks_left(state))
+
+    def _surplus(self, state) -> dict:
+        """Units of each resource above the keep line, which we will not miss.
+
+        The line is ``keep_ticks`` of cover, or what the rest of the run will
+        burn if that is less, and never below the floor.  A resource with no
+        upkeep is never surplus: nothing says what it is for.
+        """
+        weights = self.weights
+        line = max(weights.floor_ticks, min(weights.keep_ticks, self._ticks_left(state)))
+        observation = state.observation
+        surplus = {}
+        for resource in self._order(state):
+            upkeep = observation.upkeep_per_tick.get(resource)
+            held = observation.inventory.get(resource)
+            surplus[resource] = max(0, math.floor(held - line * upkeep)) if upkeep > 0 else 0
+        return surplus
+
+    def _unpromised(self, state, surplus) -> dict:
+        """Surplus not already promised by one of our open offers.
+
+        Offers reserve nothing and any of them may settle, so whatever they
+        give is treated as already gone.  Otherwise the same water could be
+        offered to five peers at once.
+        """
+        left = dict(surplus)
+        for offer in store.my_open_offers(state):
+            if not store.is_expired(offer, state.tick):
+                self._take(left, offer.give)
+        return left
+
+    @staticmethod
+    def _take(left: dict, bundle: model.Bundle) -> None:
+        for resource in left:
+            left[resource] = max(0, left[resource] - bundle.get(resource))
+
     def _currency(self, state) -> model.Resource | None:
         """The specialty, while we still hold any of it.
 
@@ -111,38 +162,45 @@ class HustlerPolicy(BasePolicy):
         specialty = state.observation.specialty
         return specialty if state.observation.inventory.get(specialty) > 0 else None
 
-    def _wanted(self, state, needs) -> tuple:
-        """What we would take.
+    def _wanted(self, state, cover) -> tuple:
+        """What we would take: anything we do not yet hold enough of.
 
-        With a currency, everything else.  We make none of it and burn all of
-        it, and the short horizon would otherwise ignore food at seven ticks of
-        cover while components pile up; prices already rank what is shortest
-        first.  Never the currency itself: buying more of it only turns
-        something that drains into something that piles up.
-
-        Without one, anything not in clear surplus counts.
+        The line is ticks of cover, not the short horizon's need, which would
+        ignore food at seven ticks of cover while components pile up; prices
+        already rank what is shortest first.  Never the currency itself:
+        buying more of it only turns something that drains into something
+        that piles up.
         """
         currency = self._currency(state)
-        others = [r for r in self._order(state) if r != currency]
-        if currency is not None:
-            return tuple(others)
-        return tuple(r for r in others if needs[r] >= 0) or tuple(others)
+        line = self._enough_line(state)
+        return tuple(r for r in self._order(state) if r != currency and cover[r] < line)
 
-    def _selling(self, state, cover) -> tuple:
-        """What to list for sale: the currency alone, if we have one.
+    def _selling(self, state, cover, surplus) -> tuple:
+        """What to list for sale: the currency, and any surplus.
 
-        Listing water as well invites peers to trade it away from us for more
-        of what we make.  With no currency, anything spare is listed.
+        Surplus is listed so a peer short of it can find us.  That does not
+        invite peers to trade our water away for more of what we make, because
+        ``_accepts`` only lets a peer pay in the currency when all it takes is
+        surplus, which we would give away anyway.  With no currency, anything
+        spare is listed.
         """
         currency = self._currency(state)
-        return (currency,) if currency is not None else self._spare(state, cover)
+        if currency is None:
+            return self._spare(state, cover)
+        return tuple(r for r in self._order(state) if r == currency or surplus[r] > 0)
 
     # --- candidates ------------------------------------------------------
-    def _accepts(self, state, cover, prices) -> list:
+    def _accepts(self, state, cover, prices, wanted, left) -> list:
         """Take nearly everything: the bar is a small loss, not a profit.
 
-        The exception is paying for our own specialty.  The acceptable loss is
-        wide enough that one water for one component would clear it, and that
+        A peer asking only for our surplus gets it, whatever it pays, since we
+        would give it away anyway; that surplus comes out of ``left`` so no
+        gift planned later promises it again.  Anything that brings in only
+        what we already hold enough of is refused, gifts included: the giver's
+        surplus should reach a station that needs it.
+
+        And we never pay for our own specialty.  The acceptable loss is wide
+        enough that one water for one component would clear it, and that
         trade, repeated, is how a station starves on a full warehouse.
         """
         weights = self.weights
@@ -151,14 +209,28 @@ class HustlerPolicy(BasePolicy):
         for offer in sorted(store.incoming_open_offers(state), key=lambda o: o.offer_id):
             received, paid = offer.give, offer.receive
             worth = self.value(prices, received) - self.value(prices, paid)
+            brings_wanted = any(received.get(r) > 0 for r in wanted)
             if paid.is_zero():
+                if brings_wanted:
+                    chosen.append(
+                        actions.Accept(
+                            offer_id=offer.offer_id,
+                            reason=f"free {received.as_tuple()} from {offer.proposer_id}",
+                            score=worth + weights.price_deficit,
+                        )
+                    )
+                continue
+            if all(paid.get(r) <= left[r] for r in left):
+                self._take(left, paid)
                 chosen.append(
                     actions.Accept(
                         offer_id=offer.offer_id,
-                        reason=f"free {received.as_tuple()} from {offer.proposer_id}",
-                        score=worth + weights.price_deficit,
+                        reason=f"{paid.as_tuple()} of surplus to {offer.proposer_id}",
+                        score=weights.gift_score,
                     )
                 )
+                continue
+            if not brings_wanted:
                 continue
             if currency is not None and received.get(currency) > 0:
                 continue
@@ -263,9 +335,53 @@ class HustlerPolicy(BasePolicy):
                     chosen.append(proposal)
         return chosen
 
-    def _advertise(self, state, cover, wanted) -> list:
+    def _gifts(self, state, left) -> list:
+        """Give surplus to the peers asking for it.
+
+        Only to a peer whose listing seeks the resource; one that has not
+        asked is as likely to leave it sitting as to need it.  One new lot per
+        peer per resource each tick, so several askers share the surplus, and
+        each lot comes out of ``left`` as it is planned.
+        """
+        weights = self.weights
+        open_gifts = {}
+        for mine in store.my_open_offers(state):
+            if mine.receive.is_zero():
+                open_gifts[mine.recipient_id] = open_gifts.get(mine.recipient_id, 0) + 1
+
+        chosen = []
+        for resource in self._order(state):
+            for advertisement in store.peer_active_advertisements(state):
+                station = advertisement.station_id
+                if resource not in advertisement.seeking:
+                    continue
+                if open_gifts.get(station, 0) >= weights.max_offers_per_peer:
+                    continue
+                lot = min(weights.gift_lot, left[resource])
+                if lot <= 0:
+                    break
+                left[resource] -= lot
+                open_gifts[station] = open_gifts.get(station, 0) + 1
+                chosen.append(
+                    actions.Offer(
+                        recipient_id=station,
+                        give=tuple(lot if r == resource else 0 for r in BUNDLE_ORDER),
+                        receive=(0, 0, 0),
+                        expires_tick=self._expiry(
+                            state, weights.gift_ttl_ticks, "max_offer_ttl_ticks"
+                        ),
+                        reason=(
+                            f"gift to {station}, which seeks "
+                            f"{resource.name.removeprefix('RESOURCE_')}"
+                        ),
+                        score=weights.gift_score,
+                    )
+                )
+        return chosen
+
+    def _advertise(self, state, cover, surplus, wanted) -> list:
         """Keep a listing up at all times; a peer who cannot find us cannot trade."""
-        selling = self._selling(state, cover)
+        selling = self._selling(state, cover, surplus)
         seeking = wanted
         if not selling and not seeking:
             return []
@@ -287,19 +403,32 @@ class HustlerPolicy(BasePolicy):
             )
         ]
 
-    def _withdrawals(self, state, prices) -> list:
-        """Only pull an offer that has become genuinely bad, and reluctantly."""
+    def _withdrawals(self, state, prices, surplus) -> list:
+        """Only pull an offer that has become genuinely bad, and reluctantly.
+
+        A gift is meant to lose value, so it is judged differently: it stays
+        while the surplus still covers it, and is pulled once it does not.
+        """
+        room = dict(surplus)
         chosen = []
         for offer in sorted(store.my_open_offers(state), key=lambda o: o.offer_id):
-            worth = self.value(prices, offer.receive) - self.value(prices, offer.give)
-            if worth < -self.weights.acceptable_loss:
-                chosen.append(
-                    actions.Withdraw(
-                        object_id=offer.offer_id,
-                        reason=f"our offer is now worth {worth:+.1f}",
-                        score=self.weights.withdraw_score,
-                    )
+            if offer.receive.is_zero():
+                if all(offer.give.get(r) <= room[r] for r in room):
+                    self._take(room, offer.give)
+                    continue
+                reason = "we can no longer spare this gift"
+            else:
+                worth = self.value(prices, offer.receive) - self.value(prices, offer.give)
+                if worth >= -self.weights.acceptable_loss:
+                    continue
+                reason = f"our offer is now worth {worth:+.1f}"
+            chosen.append(
+                actions.Withdraw(
+                    object_id=offer.offer_id,
+                    reason=reason,
+                    score=self.weights.withdraw_score,
                 )
+            )
         return chosen
 
     # --- the decision ----------------------------------------------------
@@ -307,10 +436,19 @@ class HustlerPolicy(BasePolicy):
         cover = self.cover(state)
         needs = self.needs(state)
         prices = self.prices(state, needs)
-        wanted = self._wanted(state, needs)
+        wanted = self._wanted(state, cover)
+        surplus = self._surplus(state)
+        # What gifts may still promise: surplus less our open offers, less
+        # whatever this tick's accepts and offers would pay out.
+        left = self._unpromised(state, surplus)
+        accepts = self._accepts(state, cover, prices, wanted, left)
+        offers = self._offers(state, cover, prices, wanted)
+        for offer in offers:
+            self._take(left, model.Bundle.of(offer.give))
         return [
-            *self._accepts(state, cover, prices),
-            *self._offers(state, cover, prices, wanted),
-            *self._advertise(state, cover, wanted),
-            *self._withdrawals(state, prices),
+            *accepts,
+            *offers,
+            *self._gifts(state, left),
+            *self._advertise(state, cover, surplus, wanted),
+            *self._withdrawals(state, prices, surplus),
         ]
