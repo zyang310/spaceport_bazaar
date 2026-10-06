@@ -2,11 +2,13 @@
 
 The rules tests drive ``World`` directly, one tick at a time, on a three-station
 world.  The socket tests bind port 0 and use plain ``asyncio.run``, as
-``test_runner.py`` does.  The last test runs the real client, a real policy and
-the dashboard against the sandbox, which is what the sandbox is for.
+``test_runner.py`` does.  The last test runs the real client and a real policy
+against the sandbox, reporting as it would to the dashboard, which is what the
+sandbox is for.
 """
 
 import asyncio
+import json
 import random
 from dataclasses import replace
 from pathlib import Path
@@ -17,10 +19,10 @@ from websockets.exceptions import InvalidStatus
 
 from bazaar import config
 from bazaar.brain.policy import JesusPolicy
-from bazaar.dashboard import Dashboard
 from bazaar.network.transport import BazaarClient, ProtocolErrorReceived
 from bazaar.runlog import RunLog
-from bazaar.runner import RunOutcome, fan_out, run_utility
+from bazaar.report import DashboardReporter
+from bazaar.runner import RunOutcome, run_utility
 from bazaar.sandbox import SandboxServer, World
 from bazaar.sandbox.bots import bots_act
 from bazaar.validation import decode, encode, model
@@ -281,17 +283,20 @@ def test_trading_before_readiness_is_a_bad_message_that_keeps_the_session():
     assert state_after.snapshot_sequence >= 2
 
 
-def test_the_real_client_trades_against_the_sandbox_and_the_dashboard_sees_it(tmp_path):
-    async def scenario(server):
-        dashboard = Dashboard()
-        async with BazaarClient(server.url, "sandbox", on_state=fan_out(dashboard.on_state)) as client:
-            outcome = await run_utility(
-                client, JesusPolicy(), RunLog(tmp_path), RunOutcome(), 0.6, activity=dashboard, session="s1"
-            )
-        return outcome, dashboard
+def test_the_real_client_trades_against_the_sandbox_and_reports_what_it_decided(tmp_path):
+    reports, ticks = [], []
 
-    outcome, dashboard = with_server(scenario, duration_ticks=8)
+    async def scenario(server):
+        activity = DashboardReporter(lambda event, **fields: reports.append((event, fields)))
+        async with BazaarClient(server.url, "sandbox", on_state=lambda state: ticks.append(state.tick)) as client:
+            return await run_utility(
+                client, JesusPolicy(), RunLog(tmp_path), RunOutcome(), 0.6, activity=activity, session="s1"
+            )
+
+    outcome = with_server(scenario, duration_ticks=8)
     assert not outcome.protocol_errors
-    assert dashboard.state.tick > 0
-    assert dashboard.totals["ok"] > 0
-    assert dashboard.errors == 0
+    assert max(ticks) > 0
+    sent = [fields["request_id"] for event, fields in reports if event == "sent"]
+    assert sent and all(request_id.startswith("utility-s1-") for request_id in sent)
+    codes = [json.loads(line).get("code") for line in (tmp_path / "decisions.jsonl").read_text().splitlines()]
+    assert "RESULT_CODE_OK" in codes

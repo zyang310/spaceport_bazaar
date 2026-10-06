@@ -4,9 +4,17 @@
 
 ## Watch your own planet
 
-Every run serves a live dashboard. To try it with your planet's token, follow
-the [dashboard setup](bazaar/dashboard/README.md): clone, `cp .env.example .env`,
-paste the token, `python -m bazaar --policy hustler`.
+The live dashboard is a separate program that watches this client from the
+outside. It is not part of this repository yet. With it checked out as
+`bazaar-dashboard/`, run these:
+
+```bash
+cp .env.example .env                                  # then paste your planet's token
+cd bazaar-dashboard && ./setup.sh .. && ./start.sh    # once, then each session
+python -m bazaar --policy jesus                       # in another terminal, from this repo
+```
+
+The dashboard's README covers how it hooks in and what it shows.
 
 ## Docs
 

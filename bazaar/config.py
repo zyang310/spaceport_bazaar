@@ -243,45 +243,6 @@ class JesusWeights:
 DEFAULT_JESUS = JesusWeights()
 
 
-@dataclass(frozen=True)
-class DashboardSettings:
-    """The live page served beside every run.
-
-    It binds to localhost only: the page shows our inventory and plans, which
-    is nobody else's business, and VS Code forwards the port out of the
-    devcontainer on its own.
-    """
-
-    host: str = "127.0.0.1"
-    port: int = 8765
-
-    #: How much of the past each panel keeps.  The page is a glance, not a log;
-    #: the full record is in ``runs/``.
-    recent_trades: int = 30
-    recent_actions: int = 150
-    history_ticks: int = 60
-
-    #: Ticks of cover below which a reserve is shown as critical, then low.
-    #: Critical matches Jesus's floor; low, Scrooge's danger line.
-    critical_cover_ticks: float = 2.0
-    low_cover_ticks: float = 5.0
-    #: Where each reserve's cover gauge reads full.  Past this, more stock
-    #: changes nothing worth looking at.
-    cover_gauge_ticks: float = 20.0
-
-    #: The agent panel's two windows, in ticks: the counts, then the strip.
-    recent_window_ticks: int = 10
-    strip_ticks: int = 30
-    #: Highlights the panel lists, and notable changes the hub keeps for it.
-    highlights: int = 6
-    events_kept: int = 80
-    #: A trade settled within this many ticks still shows its cargo lane.
-    cargo_ticks: int = 2
-
-
-DASHBOARD = DashboardSettings()
-
-
 #: The local sandbox game (``python -m bazaar.sandbox``).  Port 3002, beside the
 #: practice server's 3001.
 SANDBOX_URL = "ws://127.0.0.1:3002/ws"

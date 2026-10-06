@@ -7,7 +7,8 @@ Then, in another terminal, point any client at it:
 
     BAZAAR_TOKEN=sandbox python -m bazaar --policy jesus --url ws://127.0.0.1:3002/ws
 
-and open the dashboard it prints.  Any token is accepted; ``sandbox-P03``
+and, if the dashboard (``bazaar-dashboard/``) is set up and started, watch it
+there.  Any token is accepted; ``sandbox-P03``
 plays station P03, so two clients can play against each other while bots play
 the rest.  Setting the token explicitly also keeps a live token from ``.env``
 from ever being sent here.

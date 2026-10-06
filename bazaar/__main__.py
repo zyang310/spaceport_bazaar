@@ -2,12 +2,10 @@
 
     python -m bazaar --policy scripted|utility|scrooge|jesus [--shadow POLICY]
                      [--capture-fixtures] [--url URL] [--max-seconds N]
-                     [--no-dashboard] [--dashboard-port N]
 
-Every run serves a live dashboard at http://127.0.0.1:8765/ -- reserves, tick
-progress, the agent's actions and their results, open offers, recent trades --
-and, however it ends, leaves a summary at runs/<session>/history.json for the
-dashboard's history tab.
+The live dashboard is a separate program (``bazaar-dashboard/``).  Once its
+setup has run, it sees every run of this command on its own; this client only
+adds what the agent decided and why, via ``report.py``.
 
 The token comes from ``$BAZAAR_TOKEN`` or a gitignored ``.env``, falling back
 to a practice-server credentials file.  It is never printed; only its source
@@ -30,9 +28,8 @@ import time
 from . import config, runner
 from .brain.policy import AGENTS
 from .brain.policy.scripted import ScriptedPolicy
-from .dashboard import Dashboard, DashboardServer
-from .dashboard.history import write_summary
 from .network.transport import BazaarClient, ConnectionFailed, resolve_token
+from .report import reporter
 from .runlog import RunLog
 
 
@@ -67,17 +64,6 @@ def parse_args(argv=None) -> argparse.Namespace:
             f"the local sandbox (python -m bazaar.sandbox) is {config.SANDBOX_URL}"
         ),
     )
-    parser.add_argument(
-        "--no-dashboard",
-        action="store_true",
-        help="do not serve the live dashboard page",
-    )
-    parser.add_argument(
-        "--dashboard-port",
-        type=int,
-        default=config.DASHBOARD.port,
-        help=f"port for the live dashboard page (default {config.DASHBOARD.port}; taken -> any free port)",
-    )
     parser.add_argument("--credentials", default=str(config.CREDENTIALS_PATH))
     parser.add_argument("--station", default=config.STATION_ID)
     parser.add_argument(
@@ -91,19 +77,6 @@ def parse_args(argv=None) -> argparse.Namespace:
         ),
     )
     return parser.parse_args(argv)
-
-
-def write_history(run_dir, args: argparse.Namespace) -> None:
-    """Leave ``history.json`` beside the run's logs, whatever way the run ended.
-
-    Like the dashboard's hooks, this swallows its own errors: a summary that
-    cannot be written must not change how the run is reported.
-    """
-    try:
-        path = write_summary(run_dir, context={"policy": args.policy, "shadow": args.shadow})
-        print(f"history: {path}")
-    except Exception as exc:
-        print(f"history: not written ({type(exc).__name__}: {exc})")
 
 
 async def main_async(args: argparse.Namespace) -> int:
@@ -124,17 +97,9 @@ async def main_async(args: argparse.Namespace) -> int:
         shadow = runner.ShadowRecorder(AGENTS[args.shadow](), run_log)
     capture = runner.FixtureCapture(config.ROOT / "tests" / "fixtures") if args.capture_fixtures else None
 
-    # Up before we connect, so the page is already there through the
-    # handshake and however long the game sits in PHASE_READY.
-    dashboard = dashboard_server = None
-    if not args.no_dashboard:
-        dashboard = Dashboard(agent=args.policy)
-        dashboard_server = DashboardServer(dashboard)
-        try:
-            print(f"dashboard: {await dashboard_server.start(config.DASHBOARD.host, args.dashboard_port)}")
-        except OSError as exc:
-            print(f"dashboard: not started ({exc})")
-            dashboard = dashboard_server = None
+    activity = reporter(args.policy)
+    if activity is not None:
+        print("dashboard: tap active; reporting the agent's decisions")
 
     outcome = runner.RunOutcome()
     try:
@@ -142,7 +107,7 @@ async def main_async(args: argparse.Namespace) -> int:
             args.url,
             token,
             run_log=run_log,
-            on_state=runner.fan_out(shadow, dashboard.on_state if dashboard else None),
+            on_state=runner.fan_out(shadow),
             on_frame=capture,
         ) as client:
             print(f"connected to {args.url} as {args.station}")
@@ -157,7 +122,7 @@ async def main_async(args: argparse.Namespace) -> int:
                     run_log,
                     outcome,
                     args.max_seconds,
-                    activity=dashboard,
+                    activity=activity,
                     session=session,
                 )
 
@@ -180,11 +145,6 @@ async def main_async(args: argparse.Namespace) -> int:
         outcome.fail(f"connection failed: {exc}")
     except Exception as exc:
         outcome.fail(f"{type(exc).__name__}: {exc}")
-    finally:
-        # First, and synchronous: this also runs when Ctrl+C cancels the loop.
-        write_history(run_dir, args)
-        if dashboard_server is not None:
-            await dashboard_server.stop()
 
     if shadow is not None:
         print(f"shadow: {shadow.states} states seen, {shadow.proposed} actions proposed, 0 sent")

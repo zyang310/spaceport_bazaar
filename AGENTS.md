@@ -24,7 +24,7 @@ Where this repo's docs and the starter README disagree, **the README wins.**
 ## 2. Commands
 
 ```bash
-# Tests — 304 of them, all must pass. Fast (~2s).
+# Tests — 254 of them, all must pass. Fast (~3s).
 python -m pytest tests/ -q
 
 # One file
@@ -36,10 +36,10 @@ python -m bazaar --policy jesus
 # Run one agent while logging what another would have done, sending nothing
 python -m bazaar --policy scrooge --shadow jesus
 
-# Every run serves a live dashboard at http://127.0.0.1:8765/ (JSON at /view.json).
-# Turn it off, or move it
-python -m bazaar --policy jesus --no-dashboard
-python -m bazaar --policy jesus --dashboard-port 8800
+# The live dashboard is a separate program in bazaar-dashboard/ (git-excluded;
+# see its README). Set up once, start it, then run the client as usual: it sees
+# every `python -m bazaar` run from this directory on its own.
+cd bazaar-dashboard && ./setup.sh .. && ./start.sh   # page at http://127.0.0.1:8765/
 
 # The bundled practice server (start it first, in another terminal)
 cd artifacts/bazaar-protobuf-starter-linux && ./spaceport-validate-linux-arm64 --codec protobuf
@@ -79,8 +79,7 @@ not otherwise contain the literal string.
 | `bazaar/runner.py` | The loop, shadow mode, fixture capture. |
 | `bazaar/config.py` | Connection settings and every tunable weight. |
 | `bazaar/runlog.py` | Per-run JSONL logs under `runs/` (gitignored). |
-| `bazaar/dashboard/` | Live page per run. `view.py` is pure; `hub.py` records the action lifecycle; `server.py` serves page + WebSocket on one port. Must never break trading: hooks swallow their own errors. |
-| `bazaar/dashboard/skins/` | One `<id>.css` + `<id>.js` pair per look, switched in the browser (`?skin=<id>` or the header menu). `index.html` keeps layout and rendering; a skin's CSS is scoped to `:root[data-skin="<id>"]` and its script registers symbols plus the few shapes that differ (see `SKIN_DEFAULTS`). Add a skin by linking both files in `index.html`. |
+| `bazaar/report.py` | Tells the external dashboard what the agent decided and why, through its tap, when one is installed in this interpreter. The runner's `activity`. Must never break trading: every call swallows its own errors. |
 | `bazaar/sandbox/` | Local game server for testing: `world.py` (rules, pure), `bots.py` (seeded traders), `server.py` (socket). Speaks `model` types via `encode.encode_server_bytes` / `decode.decode_client_bytes`. |
 | `bazaar/network/probe.py`, `walkthrough.py` | Standalone diagnostics, outside the layers. |
 | `bazaar/memory/` | Empty stubs. Nothing persists across ticks yet. |
@@ -197,6 +196,9 @@ These are proto2 and server behaviours that have already caused bugs.
 - `webb_docs/` is the user's private notes. It is excluded via
   `.git/info/exclude` (local only, not `.gitignore`). **Never commit it**, and
   never move that rule into `.gitignore`.
+- `bazaar-dashboard/` is the live dashboard, extracted to become its own
+  repository. It is excluded the same way. **Never commit it here.** It has its
+  own tests (`cd bazaar-dashboard && python -m pytest -q`).
 - **Do not `git push`** unless explicitly asked. Commit locally.
 - Stage files by name. Avoid `git add -A` / `git add .` in this repo.
 
@@ -221,7 +223,7 @@ Match the surrounding code. Concretely:
 ## 9. Before you finish
 
 ```bash
-python -m pytest tests/ -q                                    # 304 passing
+python -m pytest tests/ -q                                    # 254 passing
 grep -rn "bazaar_pb2" bazaar/ --include="*.py" | grep -v "^bazaar/generated/"
-git status --short                                            # no .env, no webb_docs/
+git status --short                                            # no .env, no webb_docs/, no bazaar-dashboard/
 ```

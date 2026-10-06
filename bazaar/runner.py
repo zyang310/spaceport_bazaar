@@ -80,8 +80,8 @@ class ShadowRecorder:
 def fan_out(*callbacks):
     """One ``on_state`` callback that calls each of several in turn.
 
-    ``BazaarClient`` takes a single callback, and a run may want both a shadow
-    and the dashboard watching.  ``None`` entries are dropped, so optional
+    ``BazaarClient`` takes a single callback, and a run may want a shadow and
+    other observers watching at once.  ``None`` entries are dropped, so optional
     observers can be passed unconditionally.
     """
     live = [callback for callback in callbacks if callback is not None]
@@ -98,7 +98,7 @@ def fan_out(*callbacks):
 
 
 class _NoActivity:
-    """Stands in for the dashboard when nobody is watching, so the loop needs no ``if``s."""
+    """Stands in for a reporter when nobody is watching, so the loop needs no ``if``s."""
 
     def decided(self, state, actions) -> None: ...
     def sent(self, action, request_id) -> None: ...
@@ -192,7 +192,8 @@ async def run_utility(
     unlimited run with Ctrl+C, or pass ``--max-seconds`` for a bounded one.
 
     ``activity`` is told each action's progress -- decided, sent, answered --
-    which a state never reports.  The dashboard is the one in practice.
+    which a state never reports.  ``report.DashboardReporter`` is the one in
+    practice, when the external dashboard's tap is installed.
 
     ``session`` goes into every request ID.  The server remembers IDs for the
     whole run, not the connection, so a client restarted mid-game that counted
