@@ -4,15 +4,18 @@
 
 ## Watch your own planet
 
-The live dashboard is a separate program that watches this client from the
-outside. It is not part of this repository yet. With it checked out as
-`bazaar-dashboard/`, run these:
+The live dashboard is a separate repository, `bazaar-dashboard`, that watches
+this client from the outside. Keep it beside this repo (`../bazaar-dashboard`).
+The devcontainer mounts it at `/workspaces/bazaar-dashboard` and runs its setup
+on every rebuild. Then:
 
 ```bash
 cp .env.example .env                                  # then paste your planet's token
-cd bazaar-dashboard && ./setup.sh .. && ./start.sh    # once, then each session
+/workspaces/bazaar-dashboard/start.sh                 # serve the page and wait
 python -m bazaar --policy jesus                       # in another terminal, from this repo
 ```
+
+Outside the devcontainer, run `../bazaar-dashboard/setup.sh .` once first.
 
 The dashboard's README covers how it hooks in and what it shows.
 

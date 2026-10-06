@@ -11,11 +11,20 @@
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 
+	// The live dashboard is its own repository, kept beside this one on the host
+	// (../bazaar-dashboard). It must be visible in here, because the client's
+	// Python is where its hook lives. The folder must exist on the host before a
+	// rebuild: Docker will not start a container whose mount source is missing.
+	"mounts": [
+		"source=${localWorkspaceFolder}/../bazaar-dashboard,target=/workspaces/bazaar-dashboard,type=bind"
+	],
+
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "pip3 install --user -r requirements.txt && python3 -m grpc_tools.protoc -I artifacts/bazaar-protobuf-starter-linux --python_out=bazaar/generated --pyi_out=bazaar/generated artifacts/bazaar-protobuf-starter-linux/bazaar.proto && chmod +x artifacts/bazaar-protobuf-starter-linux/spaceport-validate-linux-*",
+	// The last step reconnects the dashboard, since a rebuild wipes its hook.
+	"postCreateCommand": "pip3 install --user -r requirements.txt && python3 -m grpc_tools.protoc -I artifacts/bazaar-protobuf-starter-linux --python_out=bazaar/generated --pyi_out=bazaar/generated artifacts/bazaar-protobuf-starter-linux/bazaar.proto && chmod +x artifacts/bazaar-protobuf-starter-linux/spaceport-validate-linux-* && if [ -x /workspaces/bazaar-dashboard/setup.sh ]; then /workspaces/bazaar-dashboard/setup.sh /workspaces/spaceport_bazaar; fi",
 
 	// Configure tool-specific properties.
 	"customizations": {

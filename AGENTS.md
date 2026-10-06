@@ -36,10 +36,11 @@ python -m bazaar --policy jesus
 # Run one agent while logging what another would have done, sending nothing
 python -m bazaar --policy scrooge --shadow jesus
 
-# The live dashboard is a separate program in bazaar-dashboard/ (git-excluded;
-# see its README). Set up once, start it, then run the client as usual: it sees
-# every `python -m bazaar` run from this directory on its own.
-cd bazaar-dashboard && ./setup.sh .. && ./start.sh   # page at http://127.0.0.1:8765/
+# The live dashboard is its own repository, beside this one on the host and
+# mounted at /workspaces/bazaar-dashboard (see .devcontainer). Its setup runs on
+# every rebuild; start it, then run the client as usual: it sees every
+# `python -m bazaar` run from this directory on its own.
+/workspaces/bazaar-dashboard/start.sh                # page at http://127.0.0.1:8765/
 
 # The bundled practice server (start it first, in another terminal)
 cd artifacts/bazaar-protobuf-starter-linux && ./spaceport-validate-linux-arm64 --codec protobuf
@@ -196,9 +197,10 @@ These are proto2 and server behaviours that have already caused bugs.
 - `webb_docs/` is the user's private notes. It is excluded via
   `.git/info/exclude` (local only, not `.gitignore`). **Never commit it**, and
   never move that rule into `.gitignore`.
-- `bazaar-dashboard/` is the live dashboard, extracted to become its own
-  repository. It is excluded the same way. **Never commit it here.** It has its
-  own tests (`cd bazaar-dashboard && python -m pytest -q`).
+- The live dashboard is its own git repository at `/workspaces/bazaar-dashboard`
+  (`../bazaar-dashboard` on the host), with its own tests. Commit dashboard
+  changes there, never here. `bazaar-dashboard/` stays in `.git/info/exclude`
+  in case a copy turns up inside this repo again.
 - **Do not `git push`** unless explicitly asked. Commit locally.
 - Stage files by name. Avoid `git add -A` / `git add .` in this repo.
 
