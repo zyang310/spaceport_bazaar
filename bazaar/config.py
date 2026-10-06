@@ -173,7 +173,7 @@ class JesusWeights:
 
     # --- the lines -----------------------------------------------------------
     #: Nothing is ever paid out below this.
-    floor_ticks: float = 2.0
+    floor_ticks: float = 3.0
     #: Past this a resource is no longer bought, or taken as a gift.
     enough_ticks: float = 20.0
     #: Above this the rest is surplus, and given away.  The gap from
