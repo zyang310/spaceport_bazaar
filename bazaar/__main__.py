@@ -5,7 +5,9 @@
                      [--no-dashboard] [--dashboard-port N]
 
 Every run serves a live dashboard at http://127.0.0.1:8765/ -- reserves, tick
-progress, the agent's actions and their results, open offers, recent trades.
+progress, the agent's actions and their results, open offers, recent trades --
+and, however it ends, leaves a summary at runs/<session>/history.json for the
+dashboard's history tab.
 
 The token comes from ``$BAZAAR_TOKEN`` or a gitignored ``.env``, falling back
 to a practice-server credentials file.  It is never printed; only its source
@@ -29,6 +31,7 @@ from . import config, runner
 from .brain.policy import AGENTS
 from .brain.policy.scripted import ScriptedPolicy
 from .dashboard import Dashboard, DashboardServer
+from .dashboard.history import write_summary
 from .network.transport import BazaarClient, ConnectionFailed, resolve_token
 from .runlog import RunLog
 
@@ -88,6 +91,19 @@ def parse_args(argv=None) -> argparse.Namespace:
         ),
     )
     return parser.parse_args(argv)
+
+
+def write_history(run_dir, args: argparse.Namespace) -> None:
+    """Leave ``history.json`` beside the run's logs, whatever way the run ended.
+
+    Like the dashboard's hooks, this swallows its own errors: a summary that
+    cannot be written must not change how the run is reported.
+    """
+    try:
+        path = write_summary(run_dir, context={"policy": args.policy, "shadow": args.shadow})
+        print(f"history: {path}")
+    except Exception as exc:
+        print(f"history: not written ({type(exc).__name__}: {exc})")
 
 
 async def main_async(args: argparse.Namespace) -> int:
@@ -165,6 +181,8 @@ async def main_async(args: argparse.Namespace) -> int:
     except Exception as exc:
         outcome.fail(f"{type(exc).__name__}: {exc}")
     finally:
+        # First, and synchronous: this also runs when Ctrl+C cancels the loop.
+        write_history(run_dir, args)
         if dashboard_server is not None:
             await dashboard_server.stop()
 
